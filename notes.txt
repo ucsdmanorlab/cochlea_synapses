@@ -1,0 +1,16 @@
+#01_data:
+##3 conversion scripts:
+convert_and_sort.py - converts and sorts into validation and training
+convert_and_sort_with_scaling.py - same as convert_and_sort but also reads in resolution information (created wit getResolution.ijm FIJI macro) so that images are later scaled before training/prediction
+convert_from_labels.py - converts files with label data (the above two take in binary segmentation and create labels)
+
+#02_train:
+setup01 - input = raw, output = binary segmentation
+setup02 - same as setup01, with additional augmentation and with all data converted to 8-bit
+setup03 - input = raw, output = sdt; images scaled to same pixel size
+setup04 - input = raw, output = sdt; images not scaled to same pixel size; mode=3d
+setup05 - input = raw, output = affs
+setup06 - input = raw; output = affs, lsds; images scaled to same pixel size
+setup07 - input = raw; output = affs, lsds; images not scaled to same pixel size
+setup08 - input = raw; output = affs, lsds; images not scaled to same pixel size; retrained on cleaned data; reject probability decreased
+

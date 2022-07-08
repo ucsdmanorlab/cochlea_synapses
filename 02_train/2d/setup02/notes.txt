@@ -1,0 +1,2 @@
+Converted to 8-bit
+More augmentation

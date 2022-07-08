@@ -4,7 +4,7 @@ import sys
 import webbrowser
 import zarr
 
-neuroglancer.set_server_bind_address('10.3.9.26')
+neuroglancer.set_server_bind_address('10.3.12.57')
 
 f = zarr.open(sys.argv[1])
 
@@ -47,6 +47,7 @@ with viewer.txn() as s:
     s.layout = 'yz'
 
 url = str(viewer)
+print(url)
 
 try:
     webbrowser.open_new_tab(url)

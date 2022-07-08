@@ -1,5 +1,13 @@
 *tif
 *zarr
-log
+tifs
+zarrs
+log*
 *checkpoint*
 snapshots
+src
+z_notebooks
+*csv
+*ods
+03_validate
+__pycache__

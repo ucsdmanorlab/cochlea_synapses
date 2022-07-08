@@ -14,37 +14,34 @@ torch.backends.cudnn.benchmark = True
 
 logging.basicConfig(level=logging.INFO)
 
-base_dir = '../../../01_data/zarrs/ctbp2/training'
+base_dir = '../../../01_data/zarrs/ctbp2/8-bit/training'
 
-samples = glob.glob(base_dir + '/*.zarr')
+zarrlist = glob.glob(base_dir + '/*.zarr')
 
 voxel_size = gp.Coordinate((1,)*2)
 
 input_size = gp.Coordinate((140,)*2) * voxel_size
 output_size = gp.Coordinate((100,)*2) * voxel_size
 
-new_dict = {}
+samples = {}
+for i in range(len(zarrlist)):
+    samples[zarrlist[i]] = len(glob.glob(zarrlist[i]+'/2d/raw/*'))
 
-for i in range(len(samples)):
-    new_dict[samples[i]] = len(glob.glob(samples[i]+'/2d/raw/*'))
-
-batch_size = 64
+batch_size = 32
 
 def calc_max_padding(
         output_size,
         voxel_size):
 
     diag = np.sqrt(output_size[0]**2 + output_size[1]**2)
-
+    
     max_padding = np.ceil(
             [i/2 + j for i,j in zip(
                 [output_size[0], diag, diag],
                 list(voxel_size)
                 )]
             )
-
     return gp.Coordinate(max_padding)
-
 
 class ToDtype(gp.BatchFilter):
 
@@ -72,7 +69,7 @@ def train(iterations):
     request.add(labels_mask, output_size)
     request.add(pred_mask, output_size)
 
-    num_fmaps=30
+    num_fmaps=20
 
     ds_fact = [(2,2), (2,2)]
     num_levels = len(ds_fact) + 1
@@ -92,7 +89,7 @@ def train(iterations):
             ConvPass(num_fmaps, 1, [[1,]*2], activation='Sigmoid'))
 
     loss = torch.nn.BCELoss()
-    optimizer = torch.optim.Adam(lr=0.5e-4, params=model.parameters())
+    optimizer = torch.optim.Adam(lr=5e-5, params=model.parameters())
 
     padding = calc_max_padding(output_size, voxel_size)
 
@@ -115,7 +112,7 @@ def train(iterations):
                 gp.Pad(labels_mask, padding) +
                 gp.Normalize(raw) +
                 gp.RandomLocation(mask=labels_mask)
-                for sample, num_sections in new_dict.items() 
+                for sample, num_sections in samples.items() 
                 for i in range(num_sections))
 
     pipeline = sources
@@ -124,7 +121,9 @@ def train(iterations):
 
     pipeline += gp.SimpleAugment()
 
-    pipeline += gp.IntensityAugment(raw, 0.9, 1.1, -0.1, 0.1)
+    pipeline += gp.IntensityAugment(raw, 0.6, 1.1, -0.2, 0.2)
+    
+    pipeline += gp.NoiseAugment(raw)
 
     pipeline += gp.ElasticAugment(
                     control_point_spacing=(32,)*2,
@@ -191,4 +190,4 @@ def train(iterations):
 
 if __name__ == "__main__":
 
-    train(30000)
+    train(20000)

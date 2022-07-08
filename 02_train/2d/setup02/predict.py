@@ -31,7 +31,7 @@ def predict(
     scan_request.add(raw, input_size)
     scan_request.add(pred_mask, output_size)
 
-    num_fmaps=30
+    num_fmaps=20
 
     ds_fact = [(2,2), (2,2)]
     num_levels = len(ds_fact) + 1
@@ -63,10 +63,8 @@ def predict(
         )
 
     with gp.build(source):
-        total_input_roi = source.spec[raw].roi
-        #print(total_input_roi.get_end())
-        total_output_roi = total_input_roi.grow(-context, -context)
-        #print(total_output_roi.get_end())
+        total_output_roi = source.spec[raw].roi
+        total_input_roi = total_output_roi.grow(context, context)
 
     model.eval()
 
@@ -85,7 +83,7 @@ def predict(
     pipeline = source
     pipeline += gp.Normalize(raw)
     # h, w
-
+    pipeline += gp.Pad(raw, context)
     pipeline += gp.Stack(1)
     # b, h, w
     pipeline += predict
@@ -99,9 +97,10 @@ def predict(
         # ?
     predict_request = gp.BatchRequest()
 
-    predict_request.add(raw, total_input_roi.get_end())
-    predict_request.add(pred_mask, total_input_roi.get_end()-context-context)
-    
+    predict_request.add(raw, total_output_roi.get_end())
+    predict_request[raw].roi = total_input_roi
+    predict_request.add(pred_mask, total_output_roi.get_end()) 
+
     with gp.build(pipeline):
         batch = pipeline.request_batch(predict_request)
 
@@ -111,14 +110,11 @@ def predict(
 if __name__ == '__main__':
 
     checkpoint = 'model_checkpoint_50000'
-#    raw_file = '../../../01_data/zarrs/sample_0.zarr'
-    raw_files = glob.glob('../../../01_data/zarrs/ctbp2/baboon/*.zarr')
+    raw_files = glob.glob('../../../01_data/zarrs/nih/ctbp2/*.zarr')
     
     for raw_file in raw_files:
         print(raw_file)
-        out_file = zarr.open(raw_file.replace('baboon', 'baboon_prediction'))
-
-#    out_file = zarr.open('test.zarr', 'a')
+        out_file = zarr.open(raw_file.replace('ctbp2', 'ctbp2/prediction'))
 
         full_raw = zarr.open(raw_file)['3d/raw'][:]
 
@@ -134,29 +130,25 @@ if __name__ == '__main__':
                 checkpoint,
                 raw_file,
                 raw_dataset)
-            #print(pred_mask.shape)
-
+            
             pred.append(pred_mask)
 
         pred = np.array(pred)
-        #print(pred.shape)
 
-        thresh = threshold_otsu(pred)
+        thresh = 0.5; #threshold_otsu(pred)
         thresholded = pred >= thresh
-        #print(thresholded.shape)
 
         labeled = label(thresholded).astype(np.uint64)
         offset = (np.asarray(full_raw.shape) - np.asarray(pred.shape))/2
-
 
         out_file['raw'] = full_raw
         out_file['raw'].attrs['offset'] = [0,]*3
         out_file['raw'].attrs['resolution'] = [1,]*3
 
         out_file['pred_mask'] = pred
-        out_file['pred_mask'].attrs['offset'] = list(offset) #[0,context[0],context[1]]
+        out_file['pred_mask'].attrs['offset'] = list(offset) 
         out_file['pred_mask'].attrs['resolution'] = [1,]*3
 
         out_file['labeled'] = labeled
-        out_file['labeled'].attrs['offset'] = list(offset) #[0,context[0],context[1]]
+        out_file['labeled'].attrs['offset'] = list(offset) 
         out_file['labeled'].attrs['resolution'] = [1,]*3

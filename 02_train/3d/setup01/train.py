@@ -14,28 +14,28 @@ torch.backends.cudnn.benchmark = True
 
 logging.basicConfig(level=logging.INFO)
 
-base_dir = '../../01_data/zarrs'
+base_dir = '../../../01_data/zarrs/glu/training'
 
 samples = glob.glob(base_dir + '/*.zarr')
 
-voxel_size = gp.Coordinate(
-        zarr.open(base_dir+'/sample_0.zarr')['raw'].attrs['resolution']
-)
+voxel_size = gp.Coordinate((1,)*3)
+#         zarr.open(base_dir+'/sample_0.zarr')['raw'].attrs['resolution']
+# )
 
-input_size = gp.Coordinate((132,)*3) * voxel_size
-output_size = gp.Coordinate((92,)*3) * voxel_size
+input_size = gp.Coordinate((64,)*3) * voxel_size
+output_size = gp.Coordinate((24,)*3) * voxel_size
 
-batch_size = 1
+batch_size = 10
 
 def calc_max_padding(
         output_size,
         voxel_size):
 
     diag = np.sqrt(output_size[1]**2 + output_size[2]**2)
-
+    diagz = np.sqrt(output_size[1]**2 + output_size[0]**2)
     max_padding = np.ceil(
             [i/2 + j for i,j in zip(
-                [output_size[0], diag, diag],
+                [diag, diag, diag],
                 list(voxel_size)
                 )]
             )
@@ -72,6 +72,9 @@ def train(iterations):
     num_fmaps=12
 
     ds_fact = [(2,2,2),(2,2,2)]
+    num_levels = len(ds_fact) + 1
+    ksd = [[(3,3,3),(3,3,3)]]*num_levels
+    ksu = [[(3,3,3),(3,3,3)]]*(num_levels-1)
 
     unet = UNet(
         in_channels=1,
@@ -92,9 +95,9 @@ def train(iterations):
             gp.ZarrSource(
                 sample,
                 datasets={
-                    raw:'raw',
-                    labels:'seg',
-                    labels_mask:'convex'
+                    raw:'3d/raw',
+                    labels:'3d/seg',
+                    labels_mask:'3d/mask'
                 },
                 array_specs={
                     raw:gp.ArraySpec(interpolatable=True),
@@ -105,8 +108,8 @@ def train(iterations):
                 gp.Pad(labels, padding) +
                 gp.Pad(labels_mask, padding) +
                 gp.Normalize(raw) +
-                gp.RandomLocation() +
-                gp.Reject(mask=labels_mask, min_masked=0.01)
+                gp.RandomLocation(mask=labels_mask) #+
+                #gp.Reject(mask=labels_mask, min_masked=0.1)
                 for sample in samples)
 
     pipeline = sources
@@ -117,10 +120,10 @@ def train(iterations):
 
     pipeline += gp.IntensityAugment(raw, 0.9, 1.1, -0.1, 0.1)
 
-    # pipeline += gp.ElasticAugment(
-                    # control_point_spacing=(16,)*3,
-                    # jitter_sigma=(5.0,)*3,
-                    # rotation_interval=(0,math.pi/2))
+    pipeline += gp.ElasticAugment(
+                    control_point_spacing=(16,)*3,
+                    jitter_sigma=(5.0,)*3,
+                    rotation_interval=(0,math.pi/2))
 
     # raw: d,h,w
     # labels: d,h,w
@@ -166,13 +169,13 @@ def train(iterations):
     # labels_mask: b,d,h,w
     # pred_mask: b,c,d,h,w
 
-    pipeline += gp.Squeeze([raw, labels, labels_mask])
+#    pipeline += gp.Squeeze([raw, labels, labels_mask])
 
     # raw: c,d,h,w
     # labels: c,d,h,w
     # labels_mask: d,h,w
 
-    pipeline += gp.Squeeze([raw, labels])
+#    pipeline += gp.Squeeze([raw, labels])
 
     # raw: d,h,w
     # labels: d,h,w
