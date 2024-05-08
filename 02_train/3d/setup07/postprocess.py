@@ -12,8 +12,8 @@ from skimage.segmentation import watershed
 
 #raw_files = sorted(glob.glob('../../../01_data/zarrs/nih/ctbp2_prediction_affs_lsds/*3.zarr'))
 #raw_files = sorted(glob.glob('../../../01_data/zarrs/ctbp2/prediction_affs_lsds/validation/*.zarr'))
-raw_files = sorted(glob.glob('../../../01_data/zarrs/elena-sd/ctbp2/*.zarr')) #hertzano/crops/*.zarr'))
-#raw_files = sorted(glob.glob('../../../01_data/zarrs/ctbp2/restest/out/*_8.zarr'))
+#raw_files = sorted(glob.glob('../../../01_data/zarrs/elena-sd/ctbp2/*.zarr')) #hertzano/crops/*.zarr'))
+raw_files = sorted(glob.glob('../../../01_data/zarrs/ctbp2/restest/out/*_019.zarr'))
 
 def renumber(array):
 
@@ -33,7 +33,7 @@ def watershed_from_boundary_distance(
         boundary_mask,
         return_seeds=False,
         id_offset=0,
-        min_seed_distance=10):
+        min_seed_distance=3):
 
     max_filtered = maximum_filter(boundary_distances, min_seed_distance)
     maxima = max_filtered==boundary_distances
@@ -63,12 +63,12 @@ def watershed_from_affinities(
         thresh=0.55,
         max_affinity_value=1.0,
         return_seeds=False,
-        min_seed_distance=10,
+        min_seed_distance=3,
         labels_mask=None):
 
     #mean_affs = 0.333333*( affs[0] + affs[1] + affs[2])
-    mean_affs = np.mean(affs, axis=0) 
-    mean_affs = np.mean(gaussian_filter(affs, [0,0.5,1,1]), axis=0)
+    #mean_affs = np.mean(affs, axis=0) 
+    mean_affs = np.mean(gaussian_filter(affs, [0,0.5,0.7,0.7]), axis=0)
     depth = mean_affs.shape[0]
 
     fragments = np.zeros(mean_affs.shape, dtype=np.uint64)
@@ -134,10 +134,10 @@ for raw_file in raw_files:
     #outshape = zarr.open(in_file)['raw'].shape
 
     merge_thresh = 0.05 #[0.5, 0.5, 0.5]
-    affs_thresh = 0.65
+    affs_thresh = 0.4
     pred = np.asarray(out_file['pred_affs_400'])
-    mask = np.max(pred,axis=0)>0.9 #np.asarray(out_file['pred_lsds_resize'][3])<0.4
-    segmentation = get_segmentation(pred, merge_thresh=merge_thresh, affs_thresh=affs_thresh , labels_mask=mask)
+    #mask = np.max(pred,axis=0)>0.9 #np.asarray(out_file['pred_lsds_resize'][3])<0.4
+    segmentation = get_segmentation(pred, merge_thresh=merge_thresh, affs_thresh=affs_thresh)# , labels_mask=mask)
     
     #segmentation = resize(segmentation, outshape, order=0, preserve_range=True, anti_aliasing=False)
     #segmentation = renumber(segmentation)
@@ -146,7 +146,11 @@ for raw_file in raw_files:
     #out_file['raw'].attrs['offset'] = zarr.open(in_file)['3d/raw'].attrs['offset']
     #out_file['raw'].attrs['resolution'] = zarr.open(in_file)['3d/raw'].attrs['resolution']
 
+    #out_file['affs_gauss'] = gaussian_filter(pred, [0,0.5,0.7,0.7]) #labeled.astype(np.uint64)
+    #out_file['affs_gauss'].attrs['offset'] = out_file['pred_affs_400'].attrs['offset'] 
+    #out_file['affs_gauss'].attrs['resolution'] = out_file['pred_affs_400'].attrs['resolution']
+    
     out_file['affs_seg_400'] = segmentation #labeled.astype(np.uint64)
-    out_file['affs_seg_400'].attrs['offset'] = out_file['pred_affs_400'].attrs['offset'] 
+    out_file['affs_seg_400'].attrs['offset'] = out_file['pred_affs_400'].attrs['offset']
     out_file['affs_seg_400'].attrs['resolution'] = out_file['pred_affs_400'].attrs['resolution']
 

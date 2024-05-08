@@ -21,21 +21,18 @@ logging.basicConfig(level=logging.INFO)
 
 torch.backends.cudnn.benchmark = True
 
-data_dir = '../../../01_data/zarrs/ctbp2/selected_training'#ctbp2/restest/training'
-data_dir2 = '../../../01_data/zarrs/ctbp2/restest/training'
+data_dir = '../../../01_data/zarrs/train'
 
-samples = glob.glob(data_dir+'/*.zarr') #os.listdir(data_dir)
-for i in glob.glob(data_dir2+'/*.zarr'): #os.listdir(data_dir2):
-    samples.append(i)
+samples = glob.glob(data_dir+'/confocal_NL3_Set5*.zarr') #os.listdir(data_dir)
 
 batch_size = 1
 
+run_name = '2023-01-31_test_confoc_WT_NL3_RejCMM'
 
 def calc_max_padding(
         output_size,
         voxel_size,
         mode='shrink'):
-
     diag = np.sqrt(output_size[1]**2 + output_size[2]**2)
 
     max_padding = Roi(
@@ -44,9 +41,7 @@ def calc_max_padding(
                 voxel_size),
             (0,)*3).snap_to_grid(voxel_size,mode=mode)
 
-    return max_padding.get_begin()
-
-
+    return max_padding.get_begin() 
 
 class CreateMask(BatchFilter):
 
@@ -205,6 +200,8 @@ def train_until(max_iteration):
             constant_upsample=True,
             dims=4)
 
+    torch.cuda.set_device(0)
+    
     loss = WeightedMSELoss()
 
     optimizer = torch.optim.Adam(
@@ -214,7 +211,7 @@ def train_until(max_iteration):
 
     raw = ArrayKey('RAW')
     labels = ArrayKey('GT_LABELS')
-    foreground_mask = ArrayKey('FOREGROUND_MASK')
+    #foreground_mask = ArrayKey('FOREGROUND_MASK')
     labels_mask = ArrayKey('LABELS_MASK')
     gt_affs = ArrayKey('GT_AFFS')
     gt_lsds = ArrayKey('GT_LSDS')
@@ -241,7 +238,7 @@ def train_until(max_iteration):
     request = BatchRequest()
     request.add(raw, input_size)
     request.add(labels, output_size)
-    request.add(foreground_mask, output_size)
+    #request.add(foreground_mask, output_size)
     request.add(labels_mask, output_size)
     request.add(gt_affs, output_size)
     request.add(gt_lsds, output_size)
@@ -259,20 +256,21 @@ def train_until(max_iteration):
                     {
                         raw: '3d/raw',
                         labels: '3d/labeled',
-                        foreground_mask: '3d/mask',
+                        #foreground_mask: '3d/mask',
                     },
                     {
                         raw: ArraySpec(interpolatable=True, voxel_size=voxel_size),
                         labels:ArraySpec(interpolatable=False, voxel_size=voxel_size),
-                        foreground_mask:ArraySpec(interpolatable=False, voxel_size=voxel_size),
+                        #foreground_mask:ArraySpec(interpolatable=False, voxel_size=voxel_size),
                     }
                 )
 
         source += Normalize(raw)
         source += Pad(raw, None)
         source += Pad(labels, labels_padding)
-        source += Pad(foreground_mask, labels_padding)
+        #source += Pad(foreground_mask, labels_padding)
         source += RandomLocation()
+        source += Reject_CMM(mask=labels, min_masked=0.005, min_min_masked=0.001, reject_probability=0.99)
         #source += Reject(mask=foreground_mask, min_masked=0.05, reject_probability=0.95) #commented out after 300k
 
         return source
@@ -287,8 +285,8 @@ def train_until(max_iteration):
     train_pipeline += RandomProvider()
 
     train_pipeline += ElasticAugment(
-            control_point_spacing=[6,24,24],
-            jitter_sigma=[0.5,2,2],
+            control_point_spacing=(32,)*3,
+            jitter_sigma=(2,)*3,
             rotation_interval=[0,math.pi/2.0],
             scale_interval=(0.8, 1.2),
             subsample=4)
@@ -326,7 +324,7 @@ def train_until(max_iteration):
             affs_weights,
             affs_mask)
 
-    train_pipeline += IntensityScaleShift(raw, 2,-1)
+    #train_pipeline += IntensityScaleShift(raw, 2,-1)
 
     train_pipeline += Unsqueeze([raw])
     train_pipeline += Stack(batch_size)
@@ -359,22 +357,27 @@ def train_until(max_iteration):
                 pred_affs: ArraySpec(voxel_size=voxel_size)
             },
             save_every=10000,
-            log_dir='log')
+            log_dir='log/'+run_name,
+            checkpoint_basename='model_'+run_name)
 
     train_pipeline += Squeeze([raw])
     train_pipeline += Squeeze([raw, gt_affs, pred_affs, gt_lsds, pred_lsds])
 
-    train_pipeline += IntensityScaleShift(raw, 0.5, 0.5)
+    #train_pipeline += IntensityScaleShift(raw, 0.5, 0.5)
 
-    train_pipeline += Snapshot({
+    train_pipeline += Snapshot(
+            output_dir = 'snapshots/'+run_name, 
+            dataset_names={
                 raw: 'raw',
                 labels: 'labels',
                 gt_affs: 'gt_affs',
                 gt_lsds: 'gt_lsds',
                 pred_affs: 'pred_affs', 
                 pred_lsds: 'pred_lsds',
+                #lsds_weights: 'lsds_weights',
+                #affs_weights: 'affs_weights',
             },
-            every=500,
+            every=250,
             output_filename='batch_{iteration}.zarr',
             )
 
@@ -386,5 +389,5 @@ def train_until(max_iteration):
 
 if __name__ == '__main__':
 
-    iterations = 500000
+    iterations = 1000
     train_until(iterations)

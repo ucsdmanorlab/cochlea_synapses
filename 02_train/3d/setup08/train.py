@@ -284,18 +284,18 @@ def train_until(max_iteration):
 
     train_pipeline += RandomProvider()
 
-    #train_pipeline += ElasticAugment(
-    #        control_point_spacing=[6,24,24],
-    #        jitter_sigma=[0.5,2,2],
-    #        rotation_interval=[0,math.pi/2.0],
-    #        scale_interval=(0.8, 1.2),
-    #        subsample=4)
+    train_pipeline += ElasticAugment(
+            control_point_spacing=[6,24,24],
+            jitter_sigma=[0.5,2,2],
+            rotation_interval=[0,math.pi/2.0],
+            scale_interval=(0.8, 1.2),
+            subsample=4)
 
-    #train_pipeline += SimpleAugment(transpose_only=[1, 2])
+    train_pipeline += SimpleAugment(transpose_only=[1, 2])
 
-    #train_pipeline += IntensityAugment(raw, 0.6, 1.1, -0.2, 0.2, z_section_wise=False)
-    #
-    #train_pipeline += NoiseAugment(raw, var=0.005)
+    train_pipeline += IntensityAugment(raw, 0.6, 1.1, -0.2, 0.2, z_section_wise=False)
+    
+    train_pipeline += NoiseAugment(raw, var=0.005)
 
     train_pipeline += CreateMask(labels, labels_mask)
 

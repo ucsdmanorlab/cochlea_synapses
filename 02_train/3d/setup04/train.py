@@ -305,17 +305,17 @@ def train_until(max_iteration):
 
     train_pipeline += RandomProvider()
     
-    #train_pipeline += ElasticAugment(
-    #        control_point_spacing=[6,24,24],
-    #        jitter_sigma=[0.5,2,2],
-    #        rotation_interval=[0,math.pi/2.0],
-    #        scale_interval=(0.8, 1.2))
+    train_pipeline += ElasticAugment(
+            control_point_spacing=[6,24,24],
+            jitter_sigma=[0.5,2,2],
+            rotation_interval=[0,math.pi/2.0],
+            scale_interval=(0.8, 1.2))
 
-    #train_pipeline += SimpleAugment(transpose_only=[1, 2])
+    train_pipeline += SimpleAugment(transpose_only=[1, 2])
 
-    #train_pipeline += IntensityAugment(raw, 0.6, 1.1, -0.2, 0.2, z_section_wise=False)
-    #
-    #train_pipeline += NoiseAugment(raw, var=0.01)
+    train_pipeline += IntensityAugment(raw, 0.6, 1.1, -0.2, 0.2, z_section_wise=False)
+    
+    train_pipeline += NoiseAugment(raw, var=0.01)
 
     train_pipeline += ComputeDT(
             labels,
@@ -358,7 +358,7 @@ def train_until(max_iteration):
             array_specs={
                 pred_sdt: ArraySpec(voxel_size=voxel_size)
             },
-            save_every=10000,
+            save_every=50000,
             log_dir='log')
 
     train_pipeline += Squeeze([raw])
@@ -386,5 +386,5 @@ def train_until(max_iteration):
 
 if __name__ == '__main__':
 
-    iterations = 100000
+    iterations = 400000
     train_until(iterations)

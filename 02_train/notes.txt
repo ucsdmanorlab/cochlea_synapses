@@ -1,0 +1,4 @@
+Clipping in 2d models
+Weird weighting in 2d affs model
+Weird intensity scale shift in 2d affs model...
+

@@ -33,7 +33,7 @@ def watershed_from_boundary_distance(
         boundary_mask,
         return_seeds=False,
         id_offset=0,
-        min_seed_distance=10):
+        min_seed_distance=3):
 
     max_filtered = maximum_filter(boundary_distances, min_seed_distance)
     maxima = max_filtered==boundary_distances
@@ -63,12 +63,12 @@ def watershed_from_affinities(
         thresh=0.55,
         max_affinity_value=1.0,
         return_seeds=False,
-        min_seed_distance=10,
+        min_seed_distance=3,
         labels_mask=None):
 
     #mean_affs = 0.333333*( affs[0] + affs[1] + affs[2])
-    mean_affs = np.mean(affs, axis=0) 
-    mean_affs = np.mean(gaussian_filter(affs, [0,0.5,1,1]), axis=0)
+    #mean_affs = np.mean(affs, axis=0) 
+    mean_affs = np.mean(gaussian_filter(affs, [0,0.5,0.7,0.7]), axis=0)
     depth = mean_affs.shape[0]
 
     fragments = np.zeros(mean_affs.shape, dtype=np.uint64)
@@ -133,9 +133,9 @@ for raw_file in raw_files:
     #in_file = raw_file.replace('out', 'images')
     #outshape = zarr.open(in_file)['raw'].shape
 
-    merge_thresh = 0.15 #[0.5, 0.5, 0.5]
-    affs_thresh = 0.45
-    pred = np.asarray(out_file['pred_affs_noaug'])
+    merge_thresh = 0.05 #[0.5, 0.5, 0.5]
+    affs_thresh = 0.4
+    pred = np.asarray(out_file['pred_affs'])
     #mask = np.max(pred,axis=0)>0.9 #np.asarray(out_file['pred_lsds_resize'][3])<0.4
     segmentation = get_segmentation(pred, merge_thresh=merge_thresh, affs_thresh=affs_thresh ,)# labels_mask=mask)
     
@@ -146,7 +146,7 @@ for raw_file in raw_files:
     #out_file['raw'].attrs['offset'] = zarr.open(in_file)['3d/raw'].attrs['offset']
     #out_file['raw'].attrs['resolution'] = zarr.open(in_file)['3d/raw'].attrs['resolution']
 
-    out_file['affs_seg_noaug'] = segmentation #labeled.astype(np.uint64)
-    out_file['affs_seg_noaug'].attrs['offset'] = out_file['pred_affs_cl'].attrs['offset'] 
-    out_file['affs_seg_noaug'].attrs['resolution'] = out_file['pred_affs_cl'].attrs['resolution']
+    out_file['affs_seg'] = segmentation #labeled.astype(np.uint64)
+    out_file['affs_seg'].attrs['offset'] = out_file['pred_affs'].attrs['offset'] 
+    out_file['affs_seg'].attrs['resolution'] = out_file['pred_affs'].attrs['resolution']
 

@@ -136,7 +136,7 @@ def predict(
 
 if __name__ == '__main__':
 
-    checkpoint = 'model_checkpoint_100000'
+    checkpoint = 'model_checkpoint_400000'
     raw_files = sorted(glob.glob('../../../01_data/zarrs/ctbp2/restest/validation/*08.zarr'))
     
     for raw_file in raw_files:
@@ -164,15 +164,15 @@ if __name__ == '__main__':
         labeled = watershed(np.multiply(pred, -1), label(markers*thresholded), mask = thresholded)
 
 
-        out_file['label_sdt_noaug'] = labeled.astype(np.uint64)
-        out_file['label_sdt_noaug'].attrs['offset'] = [0,]*3 #[10, 46, 46] #[0,]*3
-        out_file['label_sdt_noaug'].attrs['resolution'] = [1,]*3
+        out_file['label_sdt_400'] = labeled.astype(np.uint64)
+        out_file['label_sdt_400'].attrs['offset'] = [0,]*3 #[10, 46, 46] #[0,]*3
+        out_file['label_sdt_400'].attrs['resolution'] = [1,]*3
 
         out_file['raw'] = zarr.open(raw_file)['raw'][:]
         out_file['raw'].attrs['offset'] = [0,]*3
         out_file['raw'].attrs['resolution'] = [1,]*3
 
-        out_file['pred_sdt_noaug'] = pred
-        out_file['pred_sdt_noaug'].attrs['offset'] = [0,]*3 #[10, 46, 46] #[0,]*3
-        out_file['pred_sdt_noaug'].attrs['resolution'] = [1,]*3
+        out_file['pred_sdt_400'] = pred
+        out_file['pred_sdt_400'].attrs['offset'] = [0,]*3 #[10, 46, 46] #[0,]*3
+        out_file['pred_sdt_400'].attrs['resolution'] = [1,]*3
 
