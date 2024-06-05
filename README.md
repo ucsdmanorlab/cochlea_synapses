@@ -10,14 +10,16 @@ Current training data also includes volumes with varying resolution from varying
 2. Training and prediction: training and prediction scripts for 2D, 2.5D, and 3D models in 02_train. (Validation statistics also recorded at time of prediction.)
 
 ## install
-1) conda create -n synapses python=3.8
+1) conda create -n synapses python=3.9
 
-2) conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
+2) conda activate synapses
 
-3) pip install zarr scikit-image neuroglancer imagecodecs tensorboard tensorboardX
+3) conda install pytorch=1.12 torchvision torchaudio cudatoolkit=10.2 -c pytorch
 
-4) pip install git+git://github.com/funkey/gunpowder.git
+4) python -m pip install zarr scikit-image neuroglancer imagecodecs tensorboard tensorboardX
 
-5) pip install git+git://github.com/funkelab/funlib.learn.torch.git
+5) python -m pip install git+https://github.com/funkey/gunpowder.git
 
-6) pip install git+git://github.com/funkelab/funlib.show.neuroglancer.git
+6) python -m pip install git+https://github.com/funkelab/funlib.learn.torch.git
+
+7) python -m pip install git+https://github.com/funkelab/funlib.show.neuroglancer.git
