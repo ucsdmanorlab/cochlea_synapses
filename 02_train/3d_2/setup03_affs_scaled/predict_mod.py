@@ -1,3 +1,4 @@
+import argparse
 import daisy
 import glob
 import gunpowder as gp
@@ -75,8 +76,8 @@ def predict(
             )
     
     output_shape = model.forward(torch.empty(size=[1,1]+input_shape))[0].shape[1:]
-    input_size = gp.Coordinate(input_shape) * target_vox
-    output_size = gp.Coordinate(output_shape) * target_vox
+    input_size = gp.Coordinate(input_shape) * gp.Coordinate(target_vox)
+    output_size = gp.Coordinate(output_shape) * gp.Coordinate(target_vox)
     
     context = (input_size - output_size) / 2
     
@@ -164,29 +165,36 @@ def predict(
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("param_fi", help="file with checkpoint name and target voxel size")
+    args = parser.parse_args()
 
-    checkpoint = 'model_2024-05-06_14-05-07_3d_affs_IntWgt_b1_scaled_mid_2e-5_rej1k_checkpoint_10000' #model_2024-05-01_17-24-41_3d_affs_IntWgt_b1_scaled_NONE_2e-5_rej1k_checkpoint_10000' #0odel_2024-04-30_17-21-45_3d_affs_IntWgt_b1_scaled_up_2e-5_rej1k_checkpoint_10000'
-    target_vox=(24, 9, 9)
-    raw_files = glob.glob('../../../01_data/zarrs/validate/*.zarr')
+    params = open(args.param_fi,'r')
+    checkpoint = params.readline().strip()
+    target_vox = params.readline().strip()
+    target_vox = tuple(map(int, target_vox.split(',')))
+    print(checkpoint, target_vox)
+
+    raw_files = glob.glob('../../../01_data/zarrs/cilcare5/*.zarr') #validate/*.zarr')
     
     for raw_file in raw_files:
         print(raw_file)
 
         raw_dataset = f'3d/raw' 
-        if "airyscan" in raw_file:
-            vox = (16,4,4)
-        elif "spinning" in raw_file:
-            vox = (24, 9, 9)
-        else:
-            vox = (36,16,16)
-        #vox = target_vox        
+        # if "airyscan" in raw_file:
+        #     vox = (16,4,4)
+        # elif "spinning" in raw_file:
+        #     vox = (24, 9, 9)
+        # else:
+        #     vox = (36,16,16)
+        vox = target_vox        
         scale_fact = np.divide(vox, target_vox)
 
         in_shape = zarr.open(raw_file)['3d/raw'].shape
         out_shape = np.multiply(in_shape, scale_fact)
         in_type = zarr.open(raw_file)['3d/raw'].dtype
 
-        out_path = raw_file.replace('01_data/zarrs/validate', '03_predict/3d/'+checkpoint)
+        out_path = raw_file.replace('01_data/zarrs/', '03_predict/3d/') #validate', '03_predict/3d/'+checkpoint)
         
         save_out(
                 zarr.open(out_path), 

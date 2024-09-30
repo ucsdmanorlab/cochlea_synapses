@@ -16,7 +16,7 @@ val_dir = '../../../01_data/zarrs/noGT' #03_predict/model_2023-03-30_17-32-42_3d
 val_samples = [i for i in os.listdir(val_dir) if i.endswith('.zarr')]
 
 aff_thresh_list = [0.5] #[0.4, 0.5, 0.7, 0.9]
-merge_thresh_list = [0.35] #[0.1, 0.5, 0.7]
+merge_thresh_list = [0.35, 0.4, 0.45, 0.5] #[0.1, 0.5, 0.7]
 save_pred_labels = True #False
 save_csvs = False #True
 
@@ -159,7 +159,7 @@ for fi in val_samples:
     #gt_xyz = np.asarray([gt_xyz['centroid-2'], gt_xyz['centroid-1'], gt_xyz['centroid-0']]).T
 
 
-    pred = img['pred'][:]
+    pred = img['pred_resize'][:]
     print('pred shape ',pred.shape)
     #pred = gaussian_filter(pred, sigma=(1,0,1,1))
     
@@ -185,13 +185,13 @@ for fi in val_samples:
             #segmentation = get_segmentation(pred, merge_thresh=merge_thresh, affs_thresh=affs_thresh_scaled ,)
             if save_pred_labels:
                 print('saving labels...')
-                if os.path.exists(os.path.join(val_dir, fi, 'pred_labels')):
-                    shutil.rmtree(os.path.join(val_dir,fi,'pred_labels'))
-
+                #if os.path.exists(os.path.join(val_dir, fi, 'pred_labels')):
+                #    shutil.rmtree(os.path.join(val_dir,fi,'pred_labels'))
+                name = 'pred_resize_labels_'+str(merge_thresh)
                 print('saving')
-                img['pred_labels_MT35'] = segmentation.astype(np.uint64)
-                img['pred_labels_MT35'].attrs['offset'] = [0,]*3
-                img['pred_labels_MT35'].attrs['resolution'] = [1,]*3
+                img[name] = segmentation.astype(np.uint64)
+                img[name].attrs['offset'] = [0,]*3
+                img[name].attrs['resolution'] = [1,]*3
 
             # print('calculating stats...')
             # results= {"file": fi,

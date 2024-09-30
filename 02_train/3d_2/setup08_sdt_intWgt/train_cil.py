@@ -8,6 +8,7 @@ import operator
 import sys
 import zarr
 import torch
+#from randomReg import RandomLocation
 from gunpowder.torch import Train
 from funlib.learn.torch.models import UNet, ConvPass
 from datetime import datetime
@@ -17,9 +18,12 @@ torch.backends.cudnn.benchmark = True
 
 logging.basicConfig(level=logging.INFO)
 
-base_dir = '../../../01_data/zarrs/train' #cilcare'
+base_dir = '../../../01_data/zarrs/cilcare'
 
-samples = glob.glob(base_dir + '/*.zarr')
+zarrlist = glob.glob(base_dir + '/*.zarr')
+samples = {}
+for i in range(len(zarrlist)):
+    samples[zarrlist[i]] = zarr.open(zarrlist[i])['3d/raw'].shape[0]
 
 input_shape = gp.Coordinate((44,172,172))
 output_shape = gp.Coordinate((24,80,80))
@@ -34,7 +38,7 @@ batch_size = 1
 # dt = str(datetime.now()).replace(':','-').replace(' ', '_')
 # dt = dt[0:dt.rfind('.')]
 # run_name = dt+'_3d_sdt_IntWgt_b1'
-run_name = '2024-04-15_12-39-03_3d_sdt_IntWgt_b1_dil1' #_smallLR_dil2'
+run_name = '2024-04-15_12-39-03_3d_sdt_IntWgt_b1_dil1_cilcrop' #_smallLR_dil2'
 
 class WeightedMSELoss(torch.nn.MSELoss):
 
@@ -70,6 +74,39 @@ def calc_max_padding(
 
     return max_padding.get_begin() 
 
+class cilmask(gp.BatchFilter):
+    def __init__(
+            self,
+            raw,
+            mask):
+        self.raw = raw
+        self.mask = mask
+
+    def setup(self):
+        spec = self.spec[self.raw].copy()
+
+        self.provides(self.mask, spec)
+
+    def prepare(self, request):
+        deps = gp.BatchRequest()
+        deps[self.raw] = request[self.mask].copy()
+
+        return deps
+
+    def process(self, batch, request):
+        outputs = gp.Batch()
+
+        mask = np.zeros_like(batch[self.raw].data).astype(bool)
+        mask[:, :, 150:874] = True
+
+        spec = batch[self.raw].spec.copy()
+        spec.roi = request[self.mask].roi.copy()
+
+        outputs[self.mask] = gp.Array(
+                mask,
+                spec)
+        return outputs
+        
 class ComputeDT(gp.BatchFilter):
 
     def __init__(
@@ -372,16 +409,20 @@ def train(iterations,
                     labels:gp.ArraySpec(interpolatable=False, voxel_size=voxel_size),
                 #    labels_mask:gp.ArraySpec(interpolatable=False, voxel_size=voxel_size)
                 }) +
+                gp.Crop(raw,    fraction_negative=(0, 0, 0.15), fraction_positive=(0, 0, 0.15) ) +#gp.Roi((0, 0, 150), (z*4, 1024, 724))) +
+                gp.Crop(labels, fraction_negative=(0, 0, 0.15), fraction_positive=(0, 0, 0.15) ) + #gp.Roi((0, 0, 150), (z*4, 1024, 724))) +
                 gp.Normalize(raw) +
                 gp.Pad(raw, None) +
                 gp.Pad(labels, padding) +
                 #gp.Pad(labels_mask, padding) +
+                #cilmask(raw, cilmask) +
+                #gp.SpecifiedLocation(gp.Roi((0,0,150),(z*4, 1024, 724))) + 
                 gp.RandomLocation() +
                 gp.Reject_CMM(mask=labels, 
                     min_masked=0.005, 
                     min_min_masked=0.001,
                     reject_probability=rej_prob)
-                for sample in samples)
+                for sample, z in samples.items())
 
     pipeline = sources
 
@@ -451,7 +492,7 @@ def train(iterations,
         },
         log_dir='log/'+run_name,
         checkpoint_basename='model_'+run_name,
-        save_every=1000)
+        save_every=5000)
 
     # raw: b,c,d,h,w
     # labels: b,c,d,h,w
@@ -488,5 +529,5 @@ def train(iterations,
 
 if __name__ == "__main__":
 
-    train(1001, rej_prob=0.95)
+    train(10001, rej_prob=0.95)
     #train(90000, rej_prob=0.9)

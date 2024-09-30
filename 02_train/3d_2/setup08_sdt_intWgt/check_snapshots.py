@@ -9,7 +9,7 @@ if len(sys.argv)>1:
 else:
     snapdir = 'snapshots/*/'
 
-files = sorted(glob.glob(snapdir+'batch_*.zarr'))
+files = sorted(glob.glob(snapdir+'batch*.zarr'))
 
 for f in natsorted(files):
     labels = zarr.open(f)['labels'][:]

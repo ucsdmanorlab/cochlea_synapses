@@ -34,6 +34,7 @@ batch_size = 1
 dt = str(datetime.now()).replace(':','-').replace(' ', '_')
 dt = dt[0:dt.rfind('.')]
 run_name = dt+'_3d_affs_IntWgt_b1_scaled_mid_2e-5_rej1k'
+#run_name = '2024-05-01_17-24-41_3d_affs_IntWgt_b1_scaled_NONE_2e-5_rej1k'
 
 def calc_max_padding(
         output_size,
@@ -278,13 +279,14 @@ def train(iterations, rej=0.95, save_int=5000):
             unet,
             ConvPass(num_fmaps, 3, [[1,]*3], activation='Sigmoid'),
             )
-
-    torch.cuda.set_device(1)
+    
+    torch.cuda.device('cuda:1')
+    #torch.cuda.set_device(1)
     
     output_shape = model.forward(torch.empty(size=[1,1]+input_shape))[0].shape[1:]
     print(output_shape, target_vox)
-    input_size = gp.Coordinate(input_shape) * target_vox
-    output_size = gp.Coordinate(output_shape) * target_vox
+    input_size = gp.Coordinate(input_shape) * voxel_size #target_vox
+    output_size = gp.Coordinate(output_shape) * voxel_size #target_vox
 
     raw_orig = gp.ArrayKey("RAW_ORIG")
     labels_orig = gp.ArrayKey("LABELS_ORIG")
@@ -317,7 +319,7 @@ def train(iterations, rej=0.95, save_int=5000):
         else: #"confocal"
             vox = (36,16,16)
 
-        #vox = gp.Coordinate(target_vox)
+        vox = gp.Coordinate(target_vox)
 
         source = gp.ZarrSource(
                 sample,
@@ -352,17 +354,17 @@ def train(iterations, rej=0.95, save_int=5000):
 
     pipeline += gp.RandomProvider()
 
-    pipeline += gp.SimpleAugment(transpose_only=[1,2])
+    # pipeline += gp.SimpleAugment(transpose_only=[1,2])
 
-    pipeline += gp.IntensityAugment(raw, 0.7, 1.3, -0.2, 0.2)
+    # pipeline += gp.IntensityAugment(raw, 0.7, 1.3, -0.2, 0.2)
 
-    pipeline += gp.ElasticAugment(
-                    control_point_spacing=(32,)*3,
-                    jitter_sigma=(2.,)*3,
-                    rotation_interval=(0,math.pi/2),
-                    scale_interval=(0.8, 1.2))
-    
-    pipeline += gp.NoiseAugment(raw, var=0.01)
+    # pipeline += gp.ElasticAugment(
+    #                 control_point_spacing=(32,)*3,
+    #                 jitter_sigma=(2.,)*3,
+    #                 rotation_interval=(0,math.pi/2),
+    #                 scale_interval=(0.8, 1.2))
+    # 
+    # pipeline += gp.NoiseAugment(raw, var=0.01)
     
     pipeline += gp.AddAffinities(
             affinity_neighborhood=neighborhood, 
@@ -445,6 +447,7 @@ def train(iterations, rej=0.95, save_int=5000):
 
 if __name__ == "__main__":
     #model_2024-04-17_19-53-46_3d_affs_IntWgt_b1_scaled_mid_2e-5_rej1k_checkpoint_9000
+    #train(10, rej=0.95, save_int=1000)
     train(1000, rej=1, save_int=1000)
-    train(8000, rej=0.95, save_int=3000)
-    train(1000, rej=0.95, save_int=1000)
+    #train(8000, rej=0.95, save_int=3000)
+    #train(1000, rej=0.95, save_int=1000)

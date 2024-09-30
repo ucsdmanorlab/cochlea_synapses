@@ -142,15 +142,16 @@ def predict(
 if __name__ == '__main__':
     start_t = time.time()
 
-    model = 'model_2024-04-15_12-39-03_3d_sdt_IntWgt_b1_dil1'
-    checkpoint = model+'_checkpoint_11000'
-    raw_files = glob.glob('../../../01_data/zarrs/validate/spinning*.zarr') #validate/*.zarr')
-    
+    model = 'model_2024-04-15_12-39-03_3d_sdt_IntWgt_b1_dil1_cilcrop'
+    checkpoint = model+'_checkpoint_20000'
+    raw_files = glob.glob('../../../03_predict/3d/cilcare_all/sdt/*.zarr') #validate/*.zarr')
+    count = 1 
     for raw_file in raw_files:
-        print(raw_file)
-        out_file = zarr.open(raw_file.replace('01_data/zarrs/validate', '03_predict/3d/sdt_train')) ##validate', '03_predict/3d/'+checkpoint))
+        print(raw_file, "(", count, "of", len(raw_files), ")")
+        count += 1
+        out_file = zarr.open(raw_file)#.replace('01_data/zarrs/cilcare', '03_predict/3d/cilcare_all/sdt')) #validate', '03_predict/3d/'+checkpoint))
 
-        raw_dataset = f'3d/raw' #zarr.open(raw_file)['3d/raw'][:]
+        raw_dataset = f'raw' #zarr.open(raw_file)['3d/raw'][:]
 
         pred = predict(
                 checkpoint,
@@ -160,7 +161,7 @@ if __name__ == '__main__':
         pred = np.array(pred)
 
         #save_out(out_file, zarr.open(raw_file)['3d/raw'][:], 'raw')
-        save_out(out_file, pred, 'pred')
-        save_out(out_file, zarr.open(raw_file)['3d/labeled'][:], 'gt_labels')
+        save_out(out_file, pred, 'pred_20k')
+        #save_out(out_file, zarr.open(raw_file)['3d/labeled'][:], 'gt_labels')
     
     print("elapsed time: "+str(time.time()-start_t))

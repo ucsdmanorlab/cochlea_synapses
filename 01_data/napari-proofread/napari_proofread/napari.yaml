@@ -1,0 +1,10 @@
+name: napari-proofread
+contributions:
+  commands:
+    - id: napari-proofread.say_hi
+      title: Say hello, world!
+      python_name: napari_proofread:show_hello_message
+  widgets:
+    - command: napari-proofread.say_hi  # note, same as command.id above
+      display_name: Hello World
+      autogenerate: true

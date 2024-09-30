@@ -1,5 +1,7 @@
 *tif
 *zarr
+*ims
+*am
 tifs
 zarrs
 log*
@@ -9,5 +11,6 @@ src
 z_notebooks
 *csv
 *ods
-03_validate
+03_predict
+04_validate
 __pycache__

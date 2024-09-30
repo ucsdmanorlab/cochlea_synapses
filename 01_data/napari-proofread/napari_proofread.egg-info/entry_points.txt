@@ -1,0 +1,2 @@
+[napari.manifest]
+napari-proofread = napari_proofread:napari.yaml

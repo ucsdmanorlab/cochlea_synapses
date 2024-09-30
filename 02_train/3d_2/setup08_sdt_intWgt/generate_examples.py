@@ -17,9 +17,10 @@ torch.backends.cudnn.benchmark = True
 
 logging.basicConfig(level=logging.INFO)
 
-base_dir = '../../../01_data/zarrs/train' #cilcare'
+base_dir = '../../../01_data/zarrs/train'
 
-samples = glob.glob(base_dir + '/*.zarr')
+group = "airyscan"
+samples = glob.glob(base_dir + '/' + group + '*.zarr')
 
 input_shape = gp.Coordinate((44,172,172))
 output_shape = gp.Coordinate((24,80,80))
@@ -31,28 +32,7 @@ output_size = output_shape * voxel_size
 
 batch_size = 1
 
-# dt = str(datetime.now()).replace(':','-').replace(' ', '_')
-# dt = dt[0:dt.rfind('.')]
-# run_name = dt+'_3d_sdt_IntWgt_b1'
-run_name = '2024-04-15_12-39-03_3d_sdt_IntWgt_b1_dil1' #_smallLR_dil2'
-
-class WeightedMSELoss(torch.nn.MSELoss):
-
-    def __init__(self):
-        super(WeightedMSELoss, self).__init__()
-
-    def forward(self, prediction, target, weights):
-        
-        scaled = weights * (prediction - target) ** 2
-
-        if len(torch.nonzero(scaled)) != 0:
-            mask = torch.masked_select(scaled, torch.gt(weights, 0))
-            loss = torch.mean(mask)
-
-        else:
-            loss = torch.mean(scaled)
-
-        return loss
+run_name = '2024-04-15_12-39-03_3d_sdt_IntWgt_b1'
 
 
 def calc_max_padding(
@@ -71,12 +51,11 @@ def calc_max_padding(
     return max_padding.get_begin() 
 
 class ComputeDT(gp.BatchFilter):
-
     def __init__(
             self,
             labels,
             sdt,
-            constant=0.5,
+            constant=0.5, 
             dtype=np.float32,
             mode='3d',
             dilate_iterations=None,
@@ -84,67 +63,66 @@ class ComputeDT(gp.BatchFilter):
             mask=None,
             labels_mask=None,
             unlabelled=None):
-
+        
         self.labels = labels
         self.sdt = sdt
         self.constant = constant
         self.dtype = dtype
         self.mode = mode
-        self.dilate_iterations = dilate_iterations
+        self.dilate_iterations = dilate_iterations                                           
         self.scale = scale
         self.mask = mask
         self.labels_mask = labels_mask
         self.unlabelled = unlabelled
-
+    
     def setup(self):
-
         spec = self.spec[self.labels].copy()
-
+        
         self.provides(self.sdt,spec)
-
         if self.mask:
             self.provides(self.mask, spec)
-
+  
     def prepare(self, request):
-
+  
         deps = gp.BatchRequest()
         deps[self.labels] = request[self.sdt].copy()
-
+  
         if self.labels_mask:
             deps[self.labels_mask] = deps[self.labels].copy()
-
+  
         if self.unlabelled:
             deps[self.unlabelled] = deps[self.labels].copy()
-
+  
         return deps
-
+  
     def _compute_dt(self, data):
         dist_func = distance_transform_edt
-
+        
         if self.dilate_iterations:
             data = binary_dilation(
                     data,
                     iterations=self.dilate_iterations)
-
+            
         if self.scale:
-            inner = dist_func(binary_erosion(data))
-            outer = dist_func(np.logical_not(data))
+          inner = dist_func(binary_erosion(data))
+          outer = dist_func(np.logical_not(data))
 
-            distance = (inner - outer) + self.constant
+          distance = (inner - outer) + self.constant
 
-            distance = np.tanh(distance / self.scale)
+          distance = np.tanh(distance / self.scale)
 
         else:
 
-            inner = dist_func(data) - self.constant
-            outer = -(dist_func(1-np.logical_not(data)) - self.constant)
+          inner = dist_func(data) - self.constant
+          outer = -(dist_func(1-np.logical_not(data)) - self.constant)
 
-            distance = np.where(data, inner, outer)
+          distance = np.where(data, inner, outer)
+
 
         return distance.astype(self.dtype)
 
     def process(self, batch, request):
-
+        
         outputs = gp.Batch()
 
         labels_data = batch[self.labels].data
@@ -170,7 +148,6 @@ class ComputeDT(gp.BatchFilter):
                 return
 
         if self.mask and self.mask in request:
-
             if self.labels_mask:
                 mask = batch[self.labels_mask].data
             else:
@@ -188,26 +165,43 @@ class ComputeDT(gp.BatchFilter):
 
         return outputs
 
-class NormalizeDT(gp.BatchFilter):
+class CopyArray(gp.BatchFilter):
 
-    # use if computing dt without scaling (eg not sdt)
+    def __init__(
+            self,
+            array_in,
+            array_out,
+            dtype=np.uint8,
+            ):
 
-    def __init__(self, distance):
-        self.distance = distance
+        self.array_in = array_in
+        self.array_out = array_out
 
-    def normalize(self, data):
+    def setup(self):
 
-        return (data - data.min()) / (data.max() - data.min())
+        arr_spec = self.spec[self.array_in].copy()
+        self.provides(self.array_out, arr_spec)
+
+    def prepare(self, request):
+
+        deps = gp.BatchRequest()
+        deps[self.array_in] = request[self.array_out].copy()
+
+        return deps
 
     def process(self, batch, request):
 
-        data = batch[self.distance].data
+        outputs = gp.Batch()
 
-        # don't normalize zero batches
-        if len(np.unique(data)) > 1:
-            data = self.normalize(data)
+        array_data = batch[self.array_in].data
 
-        batch[self.distance].data = data
+        spec = batch[self.array_in].spec.copy()
+        spec.roi = request[self.array_out].roi.copy()
+        spec.dtype = array_data.dtype
+        
+        outputs[self.array_out] =  gp.Array(array_data, spec)
+
+        return outputs
 
 class BalanceLabelsWithIntensity(gp.BatchFilter):
 
@@ -219,14 +213,12 @@ class BalanceLabelsWithIntensity(gp.BatchFilter):
             num_bins = 10,
             bin_min = 0.,
             bin_max = 1.,
-            dilate_iter = None,
             ):
 
         self.labels = labels
         self.raw = raw
         self.scales = scales
         self.bins = np.linspace(bin_min, bin_max, num=num_bins+1)
-        self.dilate_iter = dilate_iter
 
     def setup(self):
 
@@ -262,10 +254,7 @@ class BalanceLabelsWithIntensity(gp.BatchFilter):
 
         # set foreground labels to be class 0:
         #print(labels.shape, binned.shape)
-        if self.dilate_iter is not None:
-            binned[binary_dilation(labels.data>0, iterations=self.dilate_iter)] = 0
-        else:
-            binned[labels.data>0] = 0
+        binned[labels.data>0] = 0
 
         # initialize scales:
         scale_data = np.ones(labels.data.shape, dtype=np.float32)
@@ -297,65 +286,18 @@ class BalanceLabelsWithIntensity(gp.BatchFilter):
         slices = tuple(map(slice, start, end))
         return img[slices]
 
-def train(iterations,
-        rej_prob=1.):
+
+def train(count):
 
     raw = gp.ArrayKey("RAW")
     labels = gp.ArrayKey("LABELS")
-    #labels_mask = gp.ArrayKey("LABELS_MASK")
-    pred = gp.ArrayKey("PRED")
     gt = gp.ArrayKey("GT")
-    surr_mask = gp.ArrayKey("SURR_MASK")
-    mask_weights = gp.ArrayKey("MASK_WEIGHTS")
 
     request = gp.BatchRequest()
     request.add(raw, input_size)
     request.add(labels, output_size)
-    #request.add(labels_mask, output_size)
-    request.add(pred, output_size)
     request.add(gt, output_size)
-    request.add(mask_weights, output_size)
-    request.add(surr_mask, output_size)
 
-    in_channels = 1
-    num_fmaps=12
-    num_fmaps_out = 14
-    fmap_inc_factor = 5
-    downsample_factors = [(1,2,2),(1,2,2),(2,2,2)]
-
-    kernel_size_down = [
-                [(3,)*3, (3,)*3],
-                [(3,)*3, (3,)*3],
-                [(3,)*3, (3,)*3],
-                [(1,3,3), (1,3,3)]]
-
-    kernel_size_up = [
-                [(1,3,3), (1,3,3)],
-                [(3,)*3, (3,)*3],
-                [(3,)*3, (3,)*3]]
-
-    unet = UNet(
-        in_channels=in_channels,
-        num_fmaps=num_fmaps,
-        fmap_inc_factor=fmap_inc_factor,
-        downsample_factors=downsample_factors, 
-        kernel_size_down=kernel_size_down, 
-        kernel_size_up=kernel_size_up,
-        constant_upsample=True)
-    
-    model = torch.nn.Sequential(
-            unet,
-            ConvPass(num_fmaps, 1, [[1,]*3], activation='Tanh'))
-    ct = 0
-    for child in unet.children():
-        ct += 1
-        print('child '+str(ct))
-        print(child)
-    torch.cuda.set_device(1)
-
-    loss = WeightedMSELoss()
-    optimizer = torch.optim.Adam(lr=5e-6, #5e-5
-            params=model.parameters())
 
     padding = calc_max_padding(output_size, voxel_size)
 
@@ -380,13 +322,21 @@ def train(iterations,
                 gp.Reject_CMM(mask=labels, 
                     min_masked=0.005, 
                     min_min_masked=0.001,
-                    reject_probability=rej_prob)
+                    reject_probability=1) #0.95)
                 for sample in samples)
 
     pipeline = sources
 
     pipeline += gp.RandomProvider()
 
+    pipeline += gp.Snapshot(
+            output_filename=group+"_preAug_"+str(count)+".zarr",
+            output_dir="snapshots/"+run_name,
+            dataset_names={
+                raw: "raw",
+                labels: "labels",
+            },
+            every=1)
     pipeline += gp.SimpleAugment(transpose_only=[1,2])
 
     pipeline += gp.IntensityAugment(raw, 0.7, 1.3, -0.2, 0.2)
@@ -405,88 +355,27 @@ def train(iterations,
             mode='3d',
             dilate_iterations=1,
             scale=2,
-            mask=surr_mask,
             )
 
-    pipeline += BalanceLabelsWithIntensity(
-            raw,
-            surr_mask,
-            mask_weights,
-            dilate_iter=2,
-            )
-    
-    # raw: d,h,w
-    # labels: d,h,w
-
-    #pipeline += gp.IntensityScaleShift(raw, 2,-1)
-
-    pipeline += gp.Unsqueeze([raw, gt, mask_weights])
-
-    # raw: c,d,h,w
-    # labels: c,d,h,w
-    
-    pipeline += gp.Stack(batch_size)
-
-    # raw: b,c,d,h,w
-    # labels: b,c,d,h,w
-
-    pipeline += gp.PreCache(
-            cache_size=40,
-            num_workers=10)
-
-    pipeline += Train(
-        model,
-        loss,
-        optimizer,
-        inputs={
-            'input': raw
-        },
-        outputs={
-            0: pred
-        },
-        loss_inputs={
-            0: pred,
-            1: gt,
-            2: mask_weights
-        },
-        log_dir='log/'+run_name,
-        checkpoint_basename='model_'+run_name,
-        save_every=1000)
-
-    # raw: b,c,d,h,w
-    # labels: b,c,d,h,w
-    # pred_mask: b,c,d,h,w
-
-    pipeline += gp.Squeeze([raw, labels, mask_weights])
-
-    # raw: c,d,h,w
-    # labels: c,d,h,w
-
-    #pipeline += gp.Squeeze([raw, labels, pred])
-
-    # raw: d,h,w
-    # labels: d,h,w
-    # labels_mask: d,h,w
-    #pipeline += gp.IntensityScaleShift(raw, 0.5, 0.5)
     
     pipeline += gp.Snapshot(
-            output_filename="batch_{iteration}.zarr",
+            output_filename=group+"_postAug_"+str(count)+".zarr",
             output_dir="snapshots/"+run_name,
             dataset_names={
                 raw: "raw",
                 labels: "labels",
-                pred: "pred",
                 gt: "gt",
-                mask_weights: "mask_weights",
             },
-            every=250)
-    pipeline += gp.PrintProfilingStats(every=100)
+            every=1)
+    # raw: d,h,w
+    # labels: d,h,w
+    # labels_mask: d,h,w
 
     with gp.build(pipeline):
-        for i in range(iterations):
+        for i in range(1):
             batch = pipeline.request_batch(request)
 
 if __name__ == "__main__":
 
-    train(1001, rej_prob=0.95)
-    #train(90000, rej_prob=0.9)
+    for i in range(3):
+        train(i)

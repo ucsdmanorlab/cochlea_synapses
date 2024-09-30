@@ -1,71 +1,41 @@
 #!python
 #cython: language_level=3
 
+import argparse
 import numpy as np
 import shutil
 import pandas as pd
 import waterz
 import zarr
 import os
+from skimage.transform import resize
 
 from scipy.ndimage import label, gaussian_filter, maximum_filter, distance_transform_edt
 from skimage.segmentation import watershed
 from skimage.measure import regionprops_table
 
-val_dir = '../../../03_predict/model_2023-03-30_17-32-42_3d_affs_IntWgt_checkpoint_10000'
+import sys
+project_root = '/home/caylamiller/workspace/cochlea_synapses/'
+sys.path.append(project_root)
+from utils import calc_errors
+
+parser = argparse.ArgumentParser()
+parser.add_argument("param_fi", help="file with checkpoint name and target voxel size")
+args = parser.parse_args()
+
+params = open(args.param_fi,'r')
+checkpoint = params.readline().strip()
+
+val_dir = '../../../03_predict/3d/'+'cilcare5' #checkpoint #model_2023-03-30_17-32-42_3d_affs_IntWgt_checkpoint_10000'
 val_samples = [i for i in os.listdir(val_dir) if i.endswith('.zarr')]
 
-aff_thresh_list = [0.4, 0.5, 0.7, 0.9]
-merge_thresh_list = [0.1, 0.5, 0.7]
-save_pred_labels = False
-save_csvs = True
+aff_thresh_list = [0.7] #[0.1, 0.3, 0.4, 0.5, 0.6, 0.7, 0.9]
+merge_thresh_list = [0.5] #[0.3, 0.5, 0.7]
+save_pred_labels = True #False
+save_csvs = False #True
 
 AllResults = pd.DataFrame()
 count = 0
-
-def calc_errors(labels, gt_xyz, mode='2d'):
-
-    gtp = gt_xyz.shape[0]
-    Npoints_pred = len(np.unique(labels))-1
-
-    pred_idcs = np.zeros(gtp).astype(np.int32)
-
-    for i in range(gtp):
-
-        cent = np.flip(np.around(gt_xyz[i,:]).astype(np.int16))
-        pred_idcs[i] = labels[tuple(cent)]
-        #if mode=='2d':
-        #    pred_idcs[i] = labels[cent[1], cent[0]]
-        #elif mode=='3d':
-        #    pred_idcs[i] = labels[cent[2], cent[1], cent[0]]
-
-    idc, counts = np.unique(pred_idcs[pred_idcs>0], return_counts=True)
-
-    tp = len(idc) #np.sum(counts==1)
-    fm = np.sum(counts-1)
-    fn = np.sum(pred_idcs==0)
-    fp = Npoints_pred - len(idc)   
-    
-    ap = tp/(tp+fn+fp+fm)
-    f1 = 2*tp/(2*tp + fp + fn + fm)
-    
-    prec = tp/(tp+fp)
-    rec  = tp/gtp
-
-    results = {
-        "gtp": gtp, # ground truth positives
-        "tp": tp,   # true positives
-        "fn": fn,   # false negatives 
-        "fm": fm,   # false merges (2 ground truth positives IDed as 1 spot)
-        "fp": fp,   # false potives
-        "ap": ap,   # average precision
-        "f1": f1,   # f1 score 
-        "precision": prec, # precision
-        "recall": rec,     # recall
-        "mergerate": fm/gtp, # merge rate (fraction of true positives that are falsely merged? should this metric be doubled?)
-    }
-    
-    return results 
 
 def watershed_from_boundary_distance(
         boundary_distances,
@@ -159,9 +129,8 @@ for fi in val_samples:
     gt_xyz = np.asarray([gt_xyz['centroid-2'], gt_xyz['centroid-1'], gt_xyz['centroid-0']]).T
 
 
-    pred = img['pred'][:]
+    pred = img['pred_resize'][:]
     print('pred shape ',pred.shape)
-    #pred = gaussian_filter(pred, sigma=(1,0,1,1))
     
     for affs_thresh in aff_thresh_list:
         affs_thresh_scaled = affs_thresh
@@ -183,34 +152,43 @@ for fi in val_samples:
             segmentation = next(generator)
 
             #segmentation = get_segmentation(pred, merge_thresh=merge_thresh, affs_thresh=affs_thresh_scaled ,)
+            segmentation = resize(segmentation, gt.shape, order=0)
+            
             if save_pred_labels:
                 print('saving labels...')
                 if os.path.exists(os.path.join(val_dir, fi, 'pred_labels')):
                     shutil.rmtree(os.path.join(val_dir,fi,'pred_labels'))
 
                 print('saving')
+                # img['pred_resize_labels'] = segmentation.astype(np.uint64)
+                # img['pred_resize_labels'].attrs['offset'] = [0,]*3
+                # img['pred_resize_labels'].attrs['resolution'] = [1,]*3
+                
+                segmentation = resize(segmentation, gt.shape, order=0)
+
                 img['pred_labels'] = segmentation.astype(np.uint64)
                 img['pred_labels'].attrs['offset'] = [0,]*3
                 img['pred_labels'].attrs['resolution'] = [1,]*3
 
-            print('calculating stats...')
-            results= {"file": fi,
-                     "affs_thresh": affs_thresh,
-                     "merge_thresh": merge_thresh,}
-            results.update(
-                calc_errors(
-                    segmentation, 
-                    gt_xyz, 
-                    mode='3d')
-            )
-            AllResults = pd.concat([AllResults, pd.DataFrame(data=results, index=[count])])
-            count = count + 1
+            if save_csvs:
+                print('calculating stats...')
+                results= {"file": fi,
+                         "affs_thresh": affs_thresh,
+                         "merge_thresh": merge_thresh,}
+                results.update(
+                    calc_errors(
+                        segmentation, 
+                        gt_xyz, 
+                        )
+                )
+                AllResults = pd.concat([AllResults, pd.DataFrame(data=results, index=[count])])
+                count = count + 1
 
 if save_csvs:
-    AllResults.to_csv(os.path.join(val_dir,'val_stats2.csv'),encoding='utf-8-sig')
+    AllResults.to_csv(os.path.join(val_dir,'val_stats.csv'),encoding='utf-8-sig')
 
     bestlist = list(AllResults.groupby('file').idxmax()['f1'])
-    AllResults.iloc[bestlist].to_csv(os.path.join(val_dir,'best_stats2.csv'), encoding='utf-8-sig')
+    AllResults.iloc[bestlist].to_csv(os.path.join(val_dir,'best_stats.csv'), encoding='utf-8-sig')
 
 
 #for raw_file in raw_files:

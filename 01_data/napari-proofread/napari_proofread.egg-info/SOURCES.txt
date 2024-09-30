@@ -1,0 +1,9 @@
+pyproject.toml
+setup.cfg
+napari_proofread/__init__.py
+napari_proofread.egg-info/PKG-INFO
+napari_proofread.egg-info/SOURCES.txt
+napari_proofread.egg-info/dependency_links.txt
+napari_proofread.egg-info/entry_points.txt
+napari_proofread.egg-info/requires.txt
+napari_proofread.egg-info/top_level.txt
