@@ -33,21 +33,5 @@ for zarrfile in zarrfiles:
             for ds_name in ['raw', 'labeled']:
                 zarrfile[f'2p5d/{ds_name}/{z}'].attrs['offset'] = [0,]*2
                 zarrfile[f'2p5d/{ds_name}/{z}'].attrs['resolution'] = [1,]*2
-    '''    
-    for ds_name, data in [
-            ('raw', raw),
-            ('mask', convex),
-            ('labeled', labeled)]:
-
-        # write 3d data
-        out[f'3d/{ds_name}'] = data
-        out[f'3d/{ds_name}'].attrs['offset'] = [0,]*3
-        out[f'3d/{ds_name}'].attrs['resolution'] = [1,]*3
-        
-        # write 2d data
-        for z in range(data.shape[0]):
-            out[f'2d/{ds_name}/{z}'] = np.expand_dims(data[z], axis=0)
-            out[f'2d/{ds_name}/{z}'].attrs['offset'] = [0,]*2
-            out[f'2d/{ds_name}/{z}'].attrs['resolution'] = [1,]*2
-    '''
+    
     count += 1

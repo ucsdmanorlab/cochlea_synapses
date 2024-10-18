@@ -8,20 +8,34 @@ def normalize(data, maxval=1., dtype=np.uint16):
     data_norm = data_norm * scale_fact
     return data_norm.astype(dtype)
 
-def save_out(out_file,
+def save_out(
+        zarr_file,
         array,
         key,
         res=None,
-        offset=None):
+        offset=None,
+        save2d=False):
 
     if res is None:
         res = [1,]*len(array.shape)
     if offset is None:
         offset = [0,]*len(array.shape)
 
-    out_file[key] = array
-    out_file[key].attrs['offset'] = offset
-    out_file[key].attrs['resolution'] = res
+    if save2d:
+        for z in range(array.shape[0]):
+            zarr_file[f'3d/{key}/{z}'] = np.expand_dims(array[z], axis=0)
+            zarr_file[f'3d/{key}/{z}'].attrs['offset'] = offset[1::]
+            zarr_file[f'3d/{key}/{z}'].attrs['resolution'] = res[1::]
+        
+        zarr_file[f'3d/{key}'] = array
+        zarr_file[f'3d/{key}'].attrs['offset'] = offset
+        zarr_file[f'3d/{key}'].attrs['resolution'] = res
+    
+    else:
+        zarr_file[key] = array
+        zarr_file[key].attrs['offset'] = offset
+        zarr_file[key].attrs['resolution'] = res
+
 
 def split_files(
         imfis,

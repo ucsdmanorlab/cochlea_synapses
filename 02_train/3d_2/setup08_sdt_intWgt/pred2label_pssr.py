@@ -22,7 +22,7 @@ from utils import calc_errors
 
 start_t = time.time()
 
-val_dir = '../../../01_data/zarrs/pssr'
+val_dir = '../../../03_predict/3d/pssr_control' #'../../../01_data/zarrs/pssr'
 val_samples = [i for i in os.listdir(val_dir) if i.endswith('.zarr')]
 
 cand_dirs=['../../../01_data/zarrs/train', '../../../01_data/zarrs/validate']
@@ -44,9 +44,10 @@ for fi in gt_samples:
     print(fi, gt_samples.index(fi), gt_dirs[gt_samples.index(fi)])
 
 for fi in val_samples:
-    if 'spinningdisk_'+fi not in gt_samples:
+    print(fi)
+    if fi not in gt_samples: #if 'spinningdisk_'+fi not in gt_samples:
         continue
-    gt_id = gt_samples.index('spinningdisk_'+fi)
+    gt_id = gt_samples.index(fi) #'spinningdisk_'+fi)
     print("starting ", fi, " ...getting centroids...")
     img = zarr.open(os.path.join(val_dir, fi))
     gt_img = zarr.open(os.path.join(gt_dirs[gt_id], gt_samples[gt_id]))

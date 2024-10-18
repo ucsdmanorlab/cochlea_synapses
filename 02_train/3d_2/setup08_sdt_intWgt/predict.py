@@ -144,11 +144,12 @@ if __name__ == '__main__':
 
     model = 'model_2024-04-15_12-39-03_3d_sdt_IntWgt_b1_dil1'
     checkpoint = model+'_checkpoint_11000'
-    raw_files = glob.glob('../../../01_data/zarrs/validate/spinning*.zarr') #validate/*.zarr')
+    raw_files = glob.glob('../../../01_data/zarrs/pssr_control/*.zarr') 
+    #validate/spinning*.zarr') #validate/*.zarr')
     
     for raw_file in raw_files:
         print(raw_file)
-        out_file = zarr.open(raw_file.replace('01_data/zarrs/validate', '03_predict/3d/sdt_train')) ##validate', '03_predict/3d/'+checkpoint))
+        out_file = zarr.open(raw_file.replace('01_data/zarrs/pssr_control', '03_predict/3d/pssr_control')) ##validate', '03_predict/3d/'+checkpoint))
 
         raw_dataset = f'3d/raw' #zarr.open(raw_file)['3d/raw'][:]
 
@@ -161,6 +162,6 @@ if __name__ == '__main__':
 
         #save_out(out_file, zarr.open(raw_file)['3d/raw'][:], 'raw')
         save_out(out_file, pred, 'pred')
-        save_out(out_file, zarr.open(raw_file)['3d/labeled'][:], 'gt_labels')
+        #save_out(out_file, zarr.open(raw_file)['3d/labeled'][:], 'gt_labels')
     
     print("elapsed time: "+str(time.time()-start_t))
