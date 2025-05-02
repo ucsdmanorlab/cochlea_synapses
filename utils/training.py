@@ -1,41 +1,31 @@
-import glob
-import gunpowder as gp
-import logging
-import math
-import numpy as np
 import os
-import operator
-import sys
-import zarr
 import torch
-from gunpowder.torch import Train
-from funlib.learn.torch.models import UNet, ConvPass
-from datetime import datetime
+import logging
+import numpy as np
+import gunpowder as gp
+import operator
+import glob
+from natsort import natsorted
+import zarr
 from scipy.ndimage import binary_erosion, binary_dilation, distance_transform_edt
+from .reject_cmm import *
+from .reject_batch import *
+from .noise_augment import * 
 
-torch.backends.cudnn.benchmark = True
+logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.INFO)
-
-base_dir = '../../../01_data/zarrs/train' #cilcare'
-
-samples = glob.glob(base_dir + '/*.zarr')
-
-input_shape = gp.Coordinate((44,172,172))
-output_shape = gp.Coordinate((24,80,80))
-
-voxel_size = gp.Coordinate((4,1,1))
-
-input_size = input_shape * voxel_size
-output_size = output_shape * voxel_size
-
-batch_size = 1
-
-dt = str(datetime.now()).replace(':','-').replace(' ', '_')
-dt = dt[0:dt.rfind('.')]
-run_name = dt+'_ecctest_gpu0'
-#run_name = '2024-04-15_12-39-03_3d_sdt_IntWgt_b1_dil1' #_smallLR_dil2'
-
+def check_snaps(run_name):
+    #check if directory exists:
+    if not os.path.exists("snapshots/"+run_name):
+        return True
+    snaps = natsorted(glob.glob("snapshots/"+run_name+"/batch*.zarr"))[-1]
+    f = zarr.open(snaps)
+    if(f['pred'][:].max() <= -1):
+        print('bad snap')
+        return False
+    else:
+        return True
+    
 class WeightedMSELoss(torch.nn.MSELoss):
 
     def __init__(self):
@@ -54,7 +44,6 @@ class WeightedMSELoss(torch.nn.MSELoss):
 
         return loss
 
-
 def calc_max_padding(
         output_size,
         voxel_size,
@@ -70,7 +59,110 @@ def calc_max_padding(
 
     return max_padding.get_begin() 
 
+class CheckSnaps(gp.BatchFilter):
+    def __init__(
+            self, 
+            snapshot_dir="snapshots",
+            every=1,
+            ):
+        self.snapshot_dir = snapshot_dir
+        self.every = max(1, every)
+        self.n = 0
+
+    def process(self, batch, request):
+
+        if self.n % self.every == 0:
+
+            if not os.path.exists(self.snapshot_dir):
+                batch['snap_check'] = True
+                return
+
+            last_snap = natsorted(glob.glob(self.snapshot_dir + "/batch*.zarr"))[-1]
+            f = zarr.open(last_snap)
+            if f['pred'][:].max() <= -1:
+                snap_check = False
+            else:
+                snap_check = True
+            if not snap_check:
+                print('Terminating training due to bad snapshot.')
+                raise gp.BatchFilterError("Bad snapshot detected, terminating training.")
+        self.n += 1
+
+class CheckPred(gp.BatchFilter):
+    """
+    A custom Gunpowder BatchFilter to check predictions during training.
+    This filter checks the predictions at a specified interval and terminates 
+    the training if a certain number of consecutive bad predictions (converged 
+    to -1) are detected.
+    Args:
+        array (gp.ArrayKey): 
+            The key of the array to check.
+        every (int, optional): 
+            The interval at which to check predictions. Default 1.
+        consistency (int, optional): 
+            The number of consecutive bad predictions required to terminate training. Default 10.
+    """
+
+    def __init__(
+            self, 
+            array,
+            every=1,
+            consistency=10,
+            ):
+        self.every = max(1, every)
+        self.array = array
+        self.consistency = consistency
+        self.n = 0
+        self.bad_n = 0
+
+    def prepare(self, request):
+        deps = gp.BatchRequest()
+
+        deps[self.array] = request[self.array]
+
+        self.check_if = self.n % self.every == 0
+        return deps
+    
+    def process(self, batch, request):
+
+        if self.check_if:
+            data = batch.arrays[self.array].data
+            if data.max() <= -1 or data.min() >= 1:
+                self.bad_n += 1
+                logger.warning(f"{self.n}: bad prediction detected #{self.bad_n}")
+            if self.bad_n >= self.consistency:
+                raise Exception(f"Bad prediction, terminating training at {self.n}.")
+        self.n += 1
+
 class ComputeDT(gp.BatchFilter):
+    """Compute distance transform. This filter computes the signed distance transform (SDT) of the input labels.
+    
+    The distance transform is computed using the Euclidean distance transform (EDT) from the scipy.ndimage module.
+    The resulting distance transform can be scaled and/or dilated based on the provided parameters.
+    
+    Args:
+
+        labels (gp.ArrayKey): 
+            The input labels for which the distance transform is computed.
+        sdt (gp.ArrayKey): 
+            The output signed distance transform.
+        constant (float): 
+            A constant value to be added/subtracted from the distance transform.
+        dtype (numpy.dtype): 
+            The data type of the output distance transform.
+        mode (str): 
+            The mode of computation, either '2d' or '3d'.
+        dilate_iterations (int): 
+            Number of iterations for binary dilation of the input labels.
+        scale (float): 
+            Scaling factor for the distance transform.
+        mask (gp.ArrayKey): 
+            Optional mask to be computed based on the distance transform.
+        labels_mask (gp.ArrayKey): 
+            Optional mask for the input labels.
+        unlabelled (gp.ArrayKey): 
+            Optional mask for unlabelled regions.
+    """
 
     def __init__(
             self,
@@ -148,7 +240,7 @@ class ComputeDT(gp.BatchFilter):
         outputs = gp.Batch()
 
         labels_data = batch[self.labels].data
-        distance = np.zeros_like(labels_data).astype(self.dtype)
+        distance = -np.ones_like(labels_data).astype(self.dtype)
 
         spec = batch[self.labels].spec.copy()
         spec.roi = request[self.sdt].roi.copy()
@@ -209,6 +301,7 @@ class NormalizeDT(gp.BatchFilter):
 
         batch[self.distance].data = data
 
+
 class BalanceLabelsWithIntensity(gp.BatchFilter):
 
     def __init__(
@@ -250,7 +343,7 @@ class BalanceLabelsWithIntensity(gp.BatchFilter):
 
         cropped_roi = labels.spec.roi.get_shape()
         vox_size = labels.spec.voxel_size
-        raw_cropped = self.__cropND(raw.data, cropped_roi/voxel_size)
+        raw_cropped = self.__cropND(raw.data, cropped_roi/vox_size)
 
         #raw_cropped = np.expand_dims(raw_cropped, 0)
         #raw_cropped = np.repeat(raw_cropped, 3, 0)
@@ -296,197 +389,3 @@ class BalanceLabelsWithIntensity(gp.BatchFilter):
         end = tuple(map(operator.add, start, bounding))
         slices = tuple(map(slice, start, end))
         return img[slices]
-
-def train(iterations,
-        rej_prob=1.):
-
-    raw = gp.ArrayKey("RAW")
-    labels = gp.ArrayKey("LABELS")
-    #labels_mask = gp.ArrayKey("LABELS_MASK")
-    pred = gp.ArrayKey("PRED")
-    gt = gp.ArrayKey("GT")
-    surr_mask = gp.ArrayKey("SURR_MASK")
-    mask_weights = gp.ArrayKey("MASK_WEIGHTS")
-
-    request = gp.BatchRequest()
-    request.add(raw, input_size)
-    request.add(labels, output_size)
-    #request.add(labels_mask, output_size)
-    request.add(pred, output_size)
-    request.add(gt, output_size)
-    request.add(mask_weights, output_size)
-    request.add(surr_mask, output_size)
-
-    in_channels = 1
-    num_fmaps=12
-    num_fmaps_out = 14
-    fmap_inc_factor = 5
-    downsample_factors = [(1,2,2),(1,2,2),(2,2,2)]
-
-    kernel_size_down = [
-                [(3,)*3, (3,)*3],
-                [(3,)*3, (3,)*3],
-                [(3,)*3, (3,)*3],
-                [(1,3,3), (1,3,3)]]
-
-    kernel_size_up = [
-                [(1,3,3), (1,3,3)],
-                [(3,)*3, (3,)*3],
-                [(3,)*3, (3,)*3]]
-
-    unet = UNet(
-        in_channels=in_channels,
-        num_fmaps=num_fmaps,
-        fmap_inc_factor=fmap_inc_factor,
-        downsample_factors=downsample_factors, 
-        kernel_size_down=kernel_size_down, 
-        kernel_size_up=kernel_size_up,
-        constant_upsample=True)
-    
-    model = torch.nn.Sequential(
-            unet,
-            ConvPass(num_fmaps, 1, [[1,]*3], activation='Tanh'))
-    # ct = 0
-    # for child in unet.children():
-    #     ct += 1
-    #     print('child '+str(ct))
-    #     print(child)
-    torch.cuda.set_device(0)
-
-    loss = WeightedMSELoss()
-    optimizer = torch.optim.Adam(lr=5e-5, #5e-6, #5e-5
-            params=model.parameters())
-
-    padding = calc_max_padding(output_size, voxel_size)
-
-    sources = tuple(
-            gp.ZarrSource(
-                sample,
-                datasets={
-                    raw:'raw',
-                    labels:'labeled',
-                #    labels_mask:'3d/mask'
-                },
-                array_specs={
-                    raw:gp.ArraySpec(interpolatable=True, voxel_size=voxel_size),
-                    labels:gp.ArraySpec(interpolatable=False, voxel_size=voxel_size),
-                #    labels_mask:gp.ArraySpec(interpolatable=False, voxel_size=voxel_size)
-                }) +
-                gp.Normalize(raw) +
-                gp.Pad(raw, None) +
-                gp.Pad(labels, padding) +
-                #gp.Pad(labels_mask, padding) +
-                gp.RandomLocation() +
-                gp.Reject_CMM(mask=labels, 
-                    min_masked=0.005, 
-                    min_min_masked=0.001,
-                    reject_probability=rej_prob)
-                for sample in samples)
-
-    pipeline = sources
-
-    pipeline += gp.RandomProvider()
-
-    pipeline += gp.SimpleAugment(transpose_only=[1,2])
-
-    pipeline += gp.IntensityAugment(raw, 0.7, 1.3, -0.2, 0.2)
-
-    pipeline += gp.ElasticAugment(
-                    control_point_spacing=(32,)*3,
-                    jitter_sigma=(2.,)*3,
-                    rotation_interval=(0,math.pi/2),
-                    scale_interval=(0.8, 1.2))
-
-    pipeline += gp.NoiseAugment(raw, var=0.01)
-
-    pipeline += ComputeDT(
-            labels,
-            gt,
-            mode='3d',
-            dilate_iterations=None, #1
-            scale=1,
-            mask=surr_mask,
-            )
-
-    pipeline += BalanceLabelsWithIntensity(
-            raw,
-            surr_mask,
-            mask_weights,
-            dilate_iter=2,
-            )
-    
-    # raw: d,h,w
-    # labels: d,h,w
-
-    #pipeline += gp.IntensityScaleShift(raw, 2,-1)
-
-    pipeline += gp.Unsqueeze([raw, gt, mask_weights])
-
-    # raw: c,d,h,w
-    # labels: c,d,h,w
-    
-    pipeline += gp.Stack(batch_size)
-
-    # raw: b,c,d,h,w
-    # labels: b,c,d,h,w
-
-    pipeline += gp.PreCache(
-            cache_size=40,
-            num_workers=10)
-
-    pipeline += Train(
-        model,
-        loss,
-        optimizer,
-        inputs={
-            'input': raw
-        },
-        outputs={
-            0: pred
-        },
-        loss_inputs={
-            0: pred,
-            1: gt,
-            2: mask_weights
-        },
-        log_dir='log/'+run_name,
-        checkpoint_basename='model_'+run_name,
-        save_every=1000)
-
-    # raw: b,c,d,h,w
-    # labels: b,c,d,h,w
-    # pred_mask: b,c,d,h,w
-
-    pipeline += gp.Squeeze([raw, labels, mask_weights])
-
-    # raw: c,d,h,w
-    # labels: c,d,h,w
-
-    #pipeline += gp.Squeeze([raw, labels, pred])
-
-    # raw: d,h,w
-    # labels: d,h,w
-    # labels_mask: d,h,w
-    #pipeline += gp.IntensityScaleShift(raw, 0.5, 0.5)
-    
-    pipeline += gp.Snapshot(
-            output_filename="batch_{iteration}.zarr",
-            output_dir="snapshots/"+run_name,
-            dataset_names={
-                raw: "raw",
-                labels: "labels",
-                pred: "pred",
-                gt: "gt",
-                mask_weights: "mask_weights",
-            },
-            every=250)
-    pipeline += gp.PrintProfilingStats(every=100)
-
-    with gp.build(pipeline):
-        for i in range(iterations):
-            batch = pipeline.request_batch(request)
-
-if __name__ == "__main__":
-
-    train(10001, rej_prob=1)
-    #train(9001, rej_prob=0.9)

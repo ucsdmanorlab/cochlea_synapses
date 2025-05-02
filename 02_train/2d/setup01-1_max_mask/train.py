@@ -9,32 +9,38 @@ import zarr
 import torch
 from gunpowder.torch import Train
 from funlib.learn.torch.models import UNet, ConvPass
+from scipy.ndimage import binary_erosion, binary_dilation
 from datetime import datetime
 from torch.nn.functional import binary_cross_entropy
-from scipy.ndimage import binary_erosion, binary_dilation
 
 torch.backends.cudnn.benchmark = True
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 base_dir = '../../../01_data/zarrs/train'
 
 zarrlist = glob.glob(base_dir + '/*.zarr')
 voxel_size = gp.Coordinate((1,)*2)
 
-input_size = gp.Coordinate((140, 140)) * voxel_size
-output_size = gp.Coordinate((100, 100,)) * voxel_size
+input_size = gp.Coordinate((312,)*2) * voxel_size
+output_size = gp.Coordinate((272,)*2) * voxel_size
 
-samples = {}
-for i in range(len(zarrlist)):
-    samples[zarrlist[i]] = len(glob.glob(zarrlist[i]+'/2p5d/raw/*'))
-
-batch_size = 1 #256
+batch_size = 32
 
 dt = str(datetime.now()).replace(':','-').replace(' ', '_')
-dt = dt[0:dt.rfind('.')]
+dt = dt[0:dt.rfind('.')-3]
 
-run_name = dt+'_2class2p5d'
+run_name = dt+'_synapse_mask3'
+
+samples = {name: zarr.open(name)['raw_max'].shape for name in zarrlist}
+
+for sample in samples:
+    print(sample, 
+          samples[sample],
+          gp.Coordinate(
+              [max(math.ceil((b-a)), 0) for a,b in zip(samples[sample],input_size)])
+    )
 
 def calc_max_padding(
         output_size,
@@ -59,7 +65,32 @@ class WeightedBCELoss(torch.nn.BCELoss):
     def forward(self, prediction, target, weights):
         loss = binary_cross_entropy(prediction, target, weight=weights)
         return loss
+    
+class CheckDtype(gp.BatchFilter):
+    def __init__(self, keys):
+        self.keys = keys
 
+    def process(self, batch, request):
+        for key in self.keys:
+            logger.info("%s dtype: %s", key, batch[key].data.dtype)
+
+class ChangeDtype(gp.BatchFilter):
+    def __init__(self, key, dtype):
+        self.key = key
+        self.dtype = dtype
+
+    # def setup(self):
+    #     spec = self.spec[self.key].copy()
+    #     spec.dtype = self.dtype
+    #     self.provides(self.key, spec)
+
+    def process(self, batch, request):
+        spec = batch[self.key].spec.copy()
+        spec.dtype = self.dtype
+        batch[self.key] = gp.Array(
+            batch[self.key].data.astype(self.dtype),
+            spec)
+        
 class ComputeMask(gp.BatchFilter):
 
     def __init__(
@@ -143,21 +174,15 @@ class ComputeMask(gp.BatchFilter):
 def train(iterations):
 
     raw = gp.ArrayKey("RAW")
-    labels = gp.ArrayKey("LABELS")
-    #labels_mask = gp.ArrayKey("LABELS_MASK")
     gt = gp.ArrayKey("GT")
-    surr_mask = gp.ArrayKey("SURR_MASK")
-    pred_mask = gp.ArrayKey("PRED_MASK")
+    pred = gp.ArrayKey("PRED")
     mask_weights = gp.ArrayKey("MASK_WEIGHTS")
      
     request = gp.BatchRequest()
     request.add(raw, input_size)
-    request.add(labels, output_size)
-    #request.add(labels_mask, output_size)
     request.add(gt, output_size)
-    request.add(pred_mask, output_size)
+    request.add(pred, output_size)
     request.add(mask_weights, output_size)
-    request.add(surr_mask, output_size)
 
     num_fmaps=30
 
@@ -165,12 +190,9 @@ def train(iterations):
     num_levels = len(ds_fact) + 1
     ksd = [[(3,3),(3,3)]]*num_levels
     ksu = [[(3,3),(3,3)]]*(num_levels-1)
-    in_channels = 5
-    out_channels = 1
 
     unet = UNet(
-        in_channels=in_channels,
-        #out_channels=out_channels,
+        in_channels=1,
         num_fmaps=num_fmaps,
         fmap_inc_factor=5,
         downsample_factors=ds_fact,
@@ -183,9 +205,9 @@ def train(iterations):
             torch.nn.Sigmoid()
             )
 
-    #torch.cuda.set_device(1)
+    torch.cuda.set_device(0)
 
-    loss = WeightedBCELoss() #torch.nn.BCELoss()
+    loss = WeightedBCELoss() 
     optimizer = torch.optim.Adam(lr=1e-4, params=model.parameters())
 
     padding = calc_max_padding(output_size, voxel_size)
@@ -194,20 +216,24 @@ def train(iterations):
             gp.ZarrSource(
                 sample,
                 datasets={
-                    raw:f'2p5d/raw/{i}',
-                    labels:f'2p5d/labeled/{i}',
-                    },
+                    raw:f'raw_max',
+                    gt:f'label_max_dilated',
+                },
                 array_specs={
                     raw:gp.ArraySpec(interpolatable=True),
-                    labels:gp.ArraySpec(interpolatable=False),
+                    gt:gp.ArraySpec(interpolatable=False),
                 }) +
-                gp.Pad(raw, None) +
-                gp.Pad(labels, padding) +
+                gp.Pad(raw, 
+                       gp.Coordinate(
+                           [max(math.ceil((b-a)), 200) for a,b in zip(samples[sample],input_size)]
+                       )) +
+                gp.Pad(gt, 
+                       gp.Coordinate(
+                           [max(math.ceil((b-a)), 200) for a,b in zip(samples[sample],input_size)])+padding) +
                 gp.Normalize(raw) +
                 gp.RandomLocation() +
-                gp.Reject_CMM(mask=labels, min_masked=0.01, min_min_masked=0.001, reject_probability=0.9)
-                for sample, num_sections in samples.items()
-                for i in range(num_sections))
+                gp.Reject(mask=gt, min_masked=0.05, reject_probability=0.9)
+                for sample in zarrlist)
 
     pipeline = sources
 
@@ -219,25 +245,16 @@ def train(iterations):
 
     pipeline += gp.ElasticAugment(
                     control_point_spacing=(32,)*2,
-                    jitter_sigma=(2.,)*2,
+                    jitter_sigma=(2,)*2,
                     rotation_interval=(0,math.pi/2),
                     scale_interval=(0.8, 1.2))
     
     pipeline += gp.NoiseAugment(raw, var=0.01)
 
-    pipeline += ComputeMask(
-            labels,
-            gt,
-            surr_mask,
-            erode_iterations=1,
-            #surr_pix=3,
-            dtype=np.float32,
-            )
-
     pipeline += gp.BalanceLabels(
-            surr_mask,
+            gt,
             mask_weights,
-            num_classes = 3,
+            num_classes = 2,
             clipmin = None,
             clipmax = None,
             )
@@ -245,8 +262,11 @@ def train(iterations):
     # raw: h,w
     # labels: h,w
     # labels_mask: h,w
-
-    pipeline += gp.Unsqueeze([gt, mask_weights]) #, gt_fg])
+    #pipeline += CheckDtype([raw, gt, mask_weights])
+    pipeline += ChangeDtype(gt, np.float32)
+    pipeline += ChangeDtype(mask_weights, np.float32)
+    #pipeline += CheckDtype([raw, gt, mask_weights])
+    pipeline += gp.Unsqueeze([raw, gt, mask_weights]) 
 
     # raw: c,h,w
     # labels: c,h,w
@@ -270,33 +290,31 @@ def train(iterations):
             'input': raw
         },
         outputs={
-            0: pred_mask
+            0: pred
         },
         loss_inputs={
-            0: pred_mask,
+            0: pred,
             1: gt,
             2: mask_weights
         },
         log_dir='log/'+run_name,
         checkpoint_basename='model_'+run_name,
         save_every=500)
-
+    #pipeline += CheckDtype([raw, gt, mask_weights, pred])
     # raw: b,c,h,w
     # labels: b,c,h,w
     # labels_mask: b,c,h,w
     # pred_mask: b,c,h,w
     
-    pipeline += gp.Squeeze([gt, pred_mask, mask_weights], axis=1)
+    pipeline += gp.Squeeze([raw, gt, pred, mask_weights], axis=1)
 
     pipeline += gp.Snapshot(
             output_filename="batch_{iteration}.zarr",
             output_dir = 'snapshots/'+run_name,
             dataset_names={
                 raw: "raw",
-                labels: "labels",
-                #labels_mask: "labels_mask",
                 gt: "gt", 
-                pred_mask: "pred_mask",
+                pred: "pred",
                 mask_weights: "mask_weights",
             },
             every=250)
@@ -306,8 +324,7 @@ def train(iterations):
     with gp.build(pipeline):
         for i in range(iterations):
             batch = pipeline.request_batch(request)
-            print(batch[raw].spec)
 
 if __name__ == "__main__":
 
-    train(10000)
+    train(2000)

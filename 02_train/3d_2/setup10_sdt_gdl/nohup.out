@@ -1,0 +1,102 @@
+INFO:gunpowder.torch.nodes.train:Starting training from scratch
+INFO:gunpowder.torch.nodes.train:Using device cuda
+INFO:gunpowder.nodes.precache:starting new set of workers (10, cache size 40)...
+INFO:gunpowder.nodes.generic_train:Train process: iteration=1 loss=0.606813 time=10.189237
+INFO:gunpowder.nodes.snapshot:saving to snapshots/2025-03-24_17-16-03_MSE1GDL15_rej1_end0.8_step0.01_every1_1k4k/batch_1.zarr
+INFO:gunpowder.nodes.generic_train:Train process: iteration=2 loss=0.516315 time=0.748233
+INFO:gunpowder.nodes.generic_train:Train process: iteration=3 loss=0.557891 time=0.732541
+INFO:gunpowder.nodes.generic_train:Train process: iteration=4 loss=0.360105 time=0.729102
+INFO:gunpowder.nodes.generic_train:Train process: iteration=5 loss=0.495061 time=0.729473
+INFO:gunpowder.nodes.generic_train:Train process: iteration=6 loss=0.525397 time=0.732335
+INFO:gunpowder.nodes.generic_train:Train process: iteration=7 loss=0.675222 time=0.731799
+INFO:gunpowder.nodes.generic_train:Train process: iteration=8 loss=0.502626 time=0.738176
+INFO:gunpowder.nodes.generic_train:Train process: iteration=9 loss=0.464463 time=0.728674
+INFO:gunpowder.nodes.generic_train:Train process: iteration=10 loss=0.399221 time=0.730694
+INFO:gunpowder.nodes.generic_train:Train process: iteration=11 loss=0.342643 time=0.734599
+INFO:gunpowder.nodes.generic_train:Train process: iteration=12 loss=0.398567 time=0.729553
+INFO:gunpowder.nodes.generic_train:Train process: iteration=13 loss=0.512503 time=0.734791
+INFO:gunpowder.nodes.generic_train:Train process: iteration=14 loss=0.373961 time=0.733101
+INFO:gunpowder.nodes.generic_train:Train process: iteration=15 loss=0.347953 time=0.735107
+WARNING:utils.reject_cmm:rejected 179 batches, been waiting for a good one since 10s
+INFO:gunpowder.nodes.generic_train:Train process: iteration=16 loss=0.302859 time=0.737525
+INFO:gunpowder.nodes.generic_train:Train process: iteration=17 loss=0.350724 time=0.734048
+INFO:gunpowder.nodes.generic_train:Train process: iteration=18 loss=0.314616 time=0.732258
+INFO:gunpowder.nodes.generic_train:Train process: iteration=19 loss=0.307938 time=0.729354
+INFO:gunpowder.nodes.generic_train:Train process: iteration=20 loss=0.334558 time=0.738544
+INFO:gunpowder.nodes.generic_train:Train process: iteration=21 loss=0.269730 time=0.734634
+INFO:gunpowder.nodes.generic_train:Train process: iteration=22 loss=0.301788 time=0.737566
+INFO:gunpowder.nodes.generic_train:Train process: iteration=23 loss=0.316440 time=0.732102
+INFO:gunpowder.nodes.generic_train:Train process: iteration=24 loss=0.310971 time=0.740023
+INFO:gunpowder.nodes.generic_train:Train process: iteration=25 loss=0.322302 time=0.736596
+INFO:gunpowder.nodes.generic_train:Train process: iteration=26 loss=0.295208 time=0.742857
+INFO:gunpowder.nodes.generic_train:Train process: iteration=27 loss=0.276439 time=0.727578
+WARNING:utils.training:26: bad prediction detected #1
+INFO:gunpowder.nodes.generic_train:Train process: iteration=28 loss=0.322135 time=0.728825
+WARNING:utils.training:27: bad prediction detected #2
+INFO:gunpowder.nodes.generic_train:Train process: iteration=29 loss=0.298521 time=0.723555
+WARNING:utils.training:28: bad prediction detected #3
+INFO:gunpowder.nodes.generic_train:Train process: iteration=30 loss=0.330032 time=0.724879
+WARNING:utils.training:29: bad prediction detected #4
+INFO:gunpowder.nodes.generic_train:Train process: iteration=31 loss=0.322293 time=0.726822
+WARNING:utils.training:30: bad prediction detected #5
+INFO:gunpowder.nodes.generic_train:Train process: iteration=32 loss=0.393138 time=0.722572
+WARNING:utils.training:31: bad prediction detected #6
+INFO:gunpowder.nodes.generic_train:Train process: iteration=33 loss=0.302087 time=0.726719
+WARNING:utils.training:32: bad prediction detected #7
+INFO:gunpowder.nodes.generic_train:Train process: iteration=34 loss=0.309999 time=0.721446
+WARNING:utils.training:33: bad prediction detected #8
+INFO:gunpowder.nodes.generic_train:Train process: iteration=35 loss=0.370966 time=0.724386
+WARNING:utils.training:34: bad prediction detected #9
+INFO:gunpowder.nodes.generic_train:Train process: iteration=36 loss=0.327515 time=0.725235
+WARNING:utils.training:35: bad prediction detected #10
+INFO:gunpowder.producer_pool:terminating workers...
+INFO:gunpowder.producer_pool:joining workers...
+INFO:gunpowder.producer_pool:done
+Traceback (most recent call last):
+  File "/home/caylamiller/workspace/cochlea_synapses/02_train/3d_2/setup10_sdt_gdl/train_losstest.py", line 354, in <module>
+    train(**params) 
+  File "/home/caylamiller/workspace/cochlea_synapses/02_train/3d_2/setup10_sdt_gdl/train_losstest.py", line 328, in train
+    batch = pipeline.request_batch(request)
+  File "/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/pipeline.py", line 139, in request_batch
+    raise PipelineRequestError(self, request, original_traceback=tb) from None
+gunpowder.pipeline.PipelineRequestError: gunpowder.nodes.batch_provider.BatchRequestError: Exception in PrintProfilingStats while processing request
+	RAW: ROI: [0:176, 0:172, 0:172] (176, 172, 172), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	LABELS: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	PRED: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	GT: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	MASK_WEIGHTS: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	SURR_MASK: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+Batch returned so far:
+None
+
+gunpowder.nodes.batch_provider.BatchRequestError: Exception in CheckPred while processing request
+	RAW: ROI: [0:176, 0:172, 0:172] (176, 172, 172), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	LABELS: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	PRED: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	GT: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	MASK_WEIGHTS: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	SURR_MASK: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+Batch returned so far:
+None
+
+Traceback (most recent call last):
+  File "/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_provider.py", line 193, in request_batch
+    batch = self.provide(upstream_request)
+  File "/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_filter.py", line 179, in provide
+    processed_batch = self.process(node_batch, downstream_request)
+  File "/home/caylamiller/workspace/cochlea_synapses/utils/training.py", line 132, in process
+    raise Exception(f"Bad prediction, terminating training at {self.n}.")
+Exception: Bad prediction, terminating training at 35.
+
+
+Exception in pipeline:
+(ZarrSource[../../../01_data/zarrs/train/airyscan_nih_sample14.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/WPZ104L_CtBP2_GluR2_NF_Myo7_IHC_45_2_v2.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/WPZ104L_CtBP2_GluR2_NF_Myo7_IHC_16_0_v2.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/spinningdisk_F2307V_8kHz_a_100x.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/confocal_NL1_KO_set3.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/3531-L-32-kHz.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/spinningdisk_F2308V_8kHz_a_100x.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/spinningdisk_F2352DOI_8kHz_b_100x.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/3653-L-16-kHz.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/confocal_NL3_Set5.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/WPZ104L_CtBP2_GluR2_NF_Myo7_IHC_22_6_v2.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/airyscan_nih_sample12.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/WPZ104L_CtBP2_GluR2_NF_Myo7_IHC_8_0_v2.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/confocal_NL1_KO_Synpase_set2_green_glur2_red_ctbp2.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/WPZ104L_CtBP2_GluR2_NF_Myo7_IHC_16_0_v1.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/3526-L-08-kHz.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/WPZ104L_CtBP2_GluR2_NF_Myo7_IHC_11_3_v2.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/spinningdisk_F2354DOI_8kHz_a_100x.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/WPZ104L_CtBP2_GluR2_NF_Myo7_IHC_5_6_v1.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/confocal_NL13_dKO_set5.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/confocal_NL13_dKO_set3.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/airyscan_nih_sample16.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/3532-L-25-kHz.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/confocal_NL1_KO_set5.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/airyscan_DF1-basal-4_Airyscan_Processing.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/WPZ104L_CtBP2_GluR2_NF_Myo7_IHC_22_6_v1.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/WPZ104L_CtBP2_GluR2_NF_Myo7_IHC_5_6_v2.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/spinningdisk_F2308V_32kHz_a_100x.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/3653-L-08-kHz.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/spinningdisk_F2354DOI_32kHz_a_100x.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/confocal_NL1_KO_Synpase_set4_green_glur2_red_ctbp2.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/airyscan_nih_sample16-2.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/spinningdisk_F2307V_32kHz_a_100x.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/3653-L-04-kHz.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/airyscan_WT_3w_ctbp2_glur2_midbasal-1_Airyscan_Processing.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/airyscan_DF1-basal-5_Airyscan_Processing.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/3526-L-04-kHz.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/3641-L-32-kHz.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/airyscan_Nlgn1KO_3w_ctbp2_glur2_mid-base_-1_Airyscan_Processing.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/confocal_WT_series034.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/spinningdisk_F2352DOI_8kHz_a_100x.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/WPZ104L_CtBP2_GluR2_NF_Myo7_IHC_45_2_v1.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/3531-L-04-kHz.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/spinningdisk_F2307V_16kHz_a_100x.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/spinningdisk_F2353DOI_16kHz_a_100x.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/airyscan_Nlgn1KO_3w_ctbp2_glur2_middle_-2_Airyscan_Processing.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/confocal_NL13_dKO_Synpase_set2_green_glur2_red_ctbp2.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/WPZ104L_CtBP2_GluR2_NF_Myo7_IHC_32_0_v1.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/3526-L-25-kHz.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/spinningdisk_F2308V_16kHz_a_100x.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/WPZ104L_CtBP2_GluR2_NF_Myo7_IHC_64_0_v2.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/confocal_NL13_dKO_set4.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/confocal_NL3_Set4.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/3532-L-04-kHz.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/spinningdisk_F2353DOI_32kHz_a_100x.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/confocal_WT_Series025.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/3641-L-20-kHz.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM, ZarrSource[../../../01_data/zarrs/train/airyscan_nih_sample10.zarr] -> Normalize -> Pad -> Pad -> RandomLocation -> Reject_CMM) -> RandomProvider -> SimpleAugment -> IntensityAugment -> ElasticAugment -> NoiseAugment -> ComputeDT -> BalanceLabelsWithIntensity -> Unsqueeze -> Stack -> PreCache -> Train -> Squeeze -> Squeeze -> Snapshot -> CheckPred -> PrintProfilingStats
+while trying to process request
+
+	RAW: ROI: [0:176, 0:172, 0:172] (176, 172, 172), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	LABELS: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	PRED: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	GT: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	MASK_WEIGHTS: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+	SURR_MASK: ROI: [40:136, 46:126, 46:126] (96, 80, 80), voxel size: None, interpolatable: None, non-spatial: False, dtype: None, placeholder: False
+

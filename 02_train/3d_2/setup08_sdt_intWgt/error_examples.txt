@@ -1,0 +1,66 @@
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/balance_labels.py:        # initialize error scale with 1s
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/balance_labels.py:        error_scale = np.ones(labels.data.shape, dtype=np.float32)
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/balance_labels.py:        # set error_scale to 0 in masked-out areas
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/balance_labels.py:            error_scale *= mask.data
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/balance_labels.py:            slab = error_scale.shape
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/balance_labels.py:                m if s == -1 else s for m, s in zip(error_scale.shape, self.slab)
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/balance_labels.py:        slab_ranges = (range(0, m, s) for m, s in zip(error_scale.shape, slab))
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/balance_labels.py:            self.__balance(labels.data[slices], error_scale[slices])
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/balance_labels.py:        outputs[self.scales] = Array(error_scale, spec)
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/merge_provider.py:        error_message = (
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/merge_provider.py:                assert self.spec is None or key not in self.spec, error_message.format(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/specified_location.py:            throwing an error.
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/add_affinities.py:        raise RuntimeError(f"AddAffinities works only in 2 or 3 dimensions, not {dims}")
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_filter.py:class BatchFilterError(Exception):
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_filter.py:        return f"Error in {self.batch_filter.name()}: {self.msg}"
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_filter.py:            raise BatchFilterError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_filter.py:            raise BatchFilterError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_filter.py:                raise BatchFilterError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_filter.py:        raise BatchFilterError(self, "does not implement 'process'")
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_provider.py:class BatchRequestError(Exception):
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_provider.py:        raise NotImplementedError("Class %s does not implement 'setup'" % self.name())
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_provider.py:            if isinstance(e, BatchRequestError):
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_provider.py:            raise BatchRequestError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_provider.py:        raise NotImplementedError("Class %s does not implement 'provide'" % self.name())
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_provider.py:            raise RuntimeError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_provider.py:        raise RuntimeError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/crop.py:            raise RuntimeError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/crop.py:            raise RuntimeError("One of 'roi' and 'fraction_...' has to be given")
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/crop.py:                raise RuntimeError("Sum of crop fractions exeeds 1")
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/daisy_request_blocks.py:            raise RuntimeError("requests made to DaisyRequestBlocks have to be empty")
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/daisy_request_blocks.py:                        raise RuntimeError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/daisy_request_blocks.py:                        raise RuntimeError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/elastic_augment.py:            raise RuntimeError("voxel size must not be None")
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/generic_predict.py:        raise NotImplementedError("Class %s does not implement 'predict'" % self.name())
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/generic_train.py:        raise NotImplementedError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/grow_boundary.py:                raise RuntimeError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/hdf5like_source_base.py:        raise NotImplementedError("Only implemented in subclasses")
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/hdf5like_source_base.py:                    raise RuntimeError("%s not in %s" % (ds_name, self.filename))
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/hdf5like_write_base.py:        raise NotImplementedError("Only implemented in subclasses")
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/hdf5like_write_base.py:                        raise RuntimeError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/noise_augment.py:        except ValueError:
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/normalize.py:                raise RuntimeError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/pad.py:            raise ValueError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/pad.py:            raise ValueError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/rasterize_graph.py:            raise RuntimeError("unknown raster mode %s" % self.settings.mode)
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/scan.py:                    raise RuntimeError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/scan.py:            raise RuntimeError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/shift_augment.py:        except TypeError:
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/shift_augment.py:            raise ValueError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/squeeze.py:                        raise ValueError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/unsqueeze.py:                        raise ValueError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/zarr_source.py:                    raise RuntimeError("%s not in %s" % (ds_name, self.store))
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/zarr_write.py:                        raise RuntimeError(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_filter.py:class BatchFilterError(Exception):
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_provider.py:class BatchRequestError(Exception):
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_provider.py:            f"Exception in {self.provider.name()} while processing request"
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/batch_provider.py:        except Exception as e:
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/generic_predict.py:class PredictProcessDied(Exception):
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/generic_train.py:class TrainProcessDied(Exception):
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/hdf5like_source_base.py:        except Exception:  # todo: make specific when z5py supports it
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/hdf5like_source_base.py:        except Exception:  # todo: make specific when z5py supports it
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/iterate_locations.py:                raise Exception("Requested %s, but upstream does not provide it." % key)
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/precache.py:class WorkersDiedException(Exception):
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/specified_location.py:                    raise Exception(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/specified_location.py:                    raise Exception(
+/home/caylamiller/miniconda3/envs/synapses/lib/python3.9/site-packages/gunpowder/nodes/specified_location.py:                raise Exception("Requested %s, but upstream does not provide it." % key)

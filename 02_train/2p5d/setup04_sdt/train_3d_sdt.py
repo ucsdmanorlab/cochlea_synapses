@@ -3,10 +3,8 @@ import gunpowder as gp
 import logging
 import math
 import numpy as np
-import os
 import operator
-import sys
-import zarr
+
 import torch
 from gunpowder.torch import Train
 from funlib.learn.torch.models import UNet, ConvPass
@@ -21,20 +19,19 @@ base_dir = '../../../01_data/zarrs/train' #cilcare'
 
 samples = glob.glob(base_dir + '/*.zarr')
 
-input_shape = gp.Coordinate((44,172,172))
-output_shape = gp.Coordinate((24,80,80))
+input_shape = gp.Coordinate((5,140,140))
+output_shape = gp.Coordinate((1,100,100))
 
-voxel_size = gp.Coordinate((4,1,1))
+voxel_size = gp.Coordinate((1,1,1))
 
 input_size = input_shape * voxel_size
 output_size = output_shape * voxel_size
 
-batch_size = 1
+batch_size = 64
 
 dt = str(datetime.now()).replace(':','-').replace(' ', '_')
 dt = dt[0:dt.rfind('.')]
-run_name = dt+'_ecctest_gpu0'
-#run_name = '2024-04-15_12-39-03_3d_sdt_IntWgt_b1_dil1' #_smallLR_dil2'
+run_name = dt+'_2p5d_sdt_IntWgt'
 
 class WeightedMSELoss(torch.nn.MSELoss):
 
@@ -302,7 +299,6 @@ def train(iterations,
 
     raw = gp.ArrayKey("RAW")
     labels = gp.ArrayKey("LABELS")
-    #labels_mask = gp.ArrayKey("LABELS_MASK")
     pred = gp.ArrayKey("PRED")
     gt = gp.ArrayKey("GT")
     surr_mask = gp.ArrayKey("SURR_MASK")
@@ -311,14 +307,13 @@ def train(iterations,
     request = gp.BatchRequest()
     request.add(raw, input_size)
     request.add(labels, output_size)
-    #request.add(labels_mask, output_size)
     request.add(pred, output_size)
     request.add(gt, output_size)
     request.add(mask_weights, output_size)
     request.add(surr_mask, output_size)
 
     in_channels = 1
-    num_fmaps=12
+    num_fmaps = 30
     num_fmaps_out = 14
     fmap_inc_factor = 5
     downsample_factors = [(1,2,2),(1,2,2),(2,2,2)]
@@ -351,7 +346,7 @@ def train(iterations,
     #     ct += 1
     #     print('child '+str(ct))
     #     print(child)
-    torch.cuda.set_device(0)
+    torch.cuda.set_device(1)
 
     loss = WeightedMSELoss()
     optimizer = torch.optim.Adam(lr=5e-5, #5e-6, #5e-5
@@ -363,8 +358,8 @@ def train(iterations,
             gp.ZarrSource(
                 sample,
                 datasets={
-                    raw:'raw',
-                    labels:'labeled',
+                    raw:'3d/raw',
+                    labels:'3d/labeled',
                 #    labels_mask:'3d/mask'
                 },
                 array_specs={
@@ -488,5 +483,5 @@ def train(iterations,
 
 if __name__ == "__main__":
 
-    train(10001, rej_prob=1)
+    train(1001, rej_prob=1)
     #train(9001, rej_prob=0.9)

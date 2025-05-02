@@ -2,12 +2,14 @@
 *.zarr
 *.ims
 *.am
+*.ipynb
 tifs
 zarrs
 log*
 *checkpoint*
 snapshots
 z_notebooks
+z_figures
 03_predict
 04_validate
 __pycache__

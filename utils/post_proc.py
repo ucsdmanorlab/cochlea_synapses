@@ -25,8 +25,10 @@ def calc_errors(labels, gt_xyz, return_img=False):
     
     ap = tp/(tp+fn+fp+fm)
     f1 = 2*tp/(2*tp + fp + fn + fm)
-    
-    prec = tp/(tp+fp)
+    if tp+fp == 0:
+        prec = 1
+    else:
+        prec = tp/(tp+fp)
     rec  = tp/gtp
 
     results = {
