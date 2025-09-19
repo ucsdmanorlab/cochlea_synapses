@@ -132,20 +132,23 @@ def predict(
 if __name__ == '__main__':
     start_t = time.time()
 
-    model = 'model_full_run_MSE1_GDL5__cpu12_cx2_nwx20_MSE1.0GDL5.0' #model_2024-11-19_11-35-27_3d_sdt_IntWgt_b1_libcil' #'model_2024-04-15_12-39-03_3d_sdt_IntWgt_b1_dil1'
+    model_dir = '/tscc/lustre/ddn/scratch/cayla/synapses_data/models'
+
+    model = 'model_full_run_MSE1_GDL5__cpu12_cx2_nwx20_MSE1.0GDL5.0'
     checkpoint = model+'_checkpoint_3000'
-    raw_files = glob.glob('../../../01_data/zarrs/2812*_a_*.zarr')#train/spinning*.zarr')#validate/*.zarr') 
-    #validate/spinning*.zarr') #validate/*.zarr')
-    
+
+    model_path = os.path.join(model_dir, checkpoint)
+
+    raw_files = glob.glob('/tscc/lustre/ddn/scratch/cayla/synapses_data/validate/*.zarr')
+        
     for raw_file in raw_files:
         print(raw_file)
-        out_file = zarr.open(raw_file.replace('01_data/zarrs/',#/validate', 
-            '03_predict/3d/0'+checkpoint))
+        out_file = zarr.open(raw_file.replace('validate',checkpoint))
 
-        raw_dataset = f'raw' #zarr.open(raw_file)['3d/raw'][:]
+        raw_dataset = f'raw' 
 
         pred = predict(
-                checkpoint,
+                model_path,
                 raw_file,
                 raw_dataset) 
 
@@ -153,6 +156,6 @@ if __name__ == '__main__':
 
         save_out(out_file, zarr.open(raw_file)['raw'][:], 'raw', save2d=False)
         save_out(out_file, pred, 'pred', save2d=False)
-        #save_out(out_file, zarr.open(raw_file)['3d/labeled'][:], 'gt_labels',save2d=False)
+        #save_out(out_file, zarr.open(raw_file)['labeled'][:], 'gt_labels',save2d=False)
     
     print("elapsed time: "+str(time.time()-start_t))

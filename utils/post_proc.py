@@ -1,4 +1,50 @@
 import numpy as np
+from scipy.spatial import distance_matrix
+
+def greedy_match_predictions(pred_coords, pred_scores, gt_coords, dist_thresh=2.0):
+    """
+    pred_coords: (N_pred, Ndim) array of predicted object centroids
+    pred_scores: (N_pred,) array of confidence scores (higher is better)
+    gt_coords:   (N_gt, Ndim) array of GT centroids
+    dist_thresh: maximum distance for a valid match
+
+    Returns:
+        matches: list of (pred_idx, gt_idx, distance)
+        unmatched_preds: list of pred_idx
+        unmatched_gts: list of gt_idx
+    """
+    if len(pred_coords) == 0 or len(gt_coords) == 0:
+        return [], list(range(len(pred_coords))), list(range(len(gt_coords)))
+
+    dists = distance_matrix(pred_coords, gt_coords)
+
+    # Sort predictions by confidence (descending)
+    pred_order = np.argsort(-np.array(pred_scores)) 
+
+    matched_gt = set()
+    matches = []
+
+    for pred_idx in pred_order:
+        # Get closest unmatched GT
+        gt_candidates = [
+            (gt_idx, dists[pred_idx, gt_idx]) 
+            for gt_idx in range(len(gt_coords)) if gt_idx not in matched_gt
+        ]
+        if not gt_candidates:
+            continue
+        # Find nearest one
+        gt_idx, dist = min(gt_candidates, key=lambda x: x[1])
+        if dist <= dist_thresh:
+            matches.append(pred_idx) #, gt_idx, dist))
+            matched_gt.add(gt_idx)
+
+    #matched_pred = set([p for p, _, _ in matches])
+    #unmatched_preds = [i for i in range(len(pred_coords)) if i not in matched_pred]
+    #unmatched_gts = [i for i in range(len(gt_coords)) if i not in matched_gt]
+
+    y = [1 if i in matches else 0 for i in range(len(pred_scores))]
+    
+    return y #matches, unmatched_preds, unmatched_gts
 
 def calc_errors(labels, gt_xyz, return_img=False):
 

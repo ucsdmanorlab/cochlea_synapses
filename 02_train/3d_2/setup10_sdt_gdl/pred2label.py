@@ -1,16 +1,12 @@
-#!python
-#cython: language_level=3
-
 import numpy as np
 import shutil
 import pandas as pd
-import waterz
 import zarr
 import time
 import os
 
 from scipy.ndimage import gaussian_filter
-from skimage.measure import regionprops_table, label
+from skimage.measure import regionprops, regionprops_table, label
 from skimage.feature import peak_local_max
 from skimage.segmentation import watershed
 from skimage.util import map_array
@@ -23,16 +19,20 @@ from utils import calc_errors
 start_t = time.time()
 print(os.listdir('.'))
 
-val_dir = project_root+'03_predict/3d/model_2025-02-21_10-32-24_MSE0GDL1_checkpoint_2000'#model_2024-11-19_11-35-27_3d_sdt_IntWgt_b1_libcil_checkpoint_10000' #_predict/3d/cilcare5/sdt' #model_2024-04-15_12-39-03_3d_sdt_IntWgt_b1_checkpoint_10000'
+val_dir = os.path.join(project_root, '03_predict/3d/pssr_2025model_full_run_MSE1_GDL5__cpu12_cx2_nwx20_MSE1.0GDL5.0_checkpoint_3000/')#'01_data/zarrs/pssr/')
+#'03_predict/3d/cilcare5model_full_run_MSE1_GDL5__cpu12_cx2_nwx20_MSE1.0GDL5.0_checkpoint_3000/cilcare5/')
+#                       '03_predict/3d/model_full_run_MSE1_GDL5__cpu12_cx2_nwx20_MSE1.0GDL5.0')
+pred_name = 'pred_new'
 val_samples = [i for i in os.listdir(val_dir) if i.endswith('.zarr')]
-gt_dir = project_root+'01_data/zarrs/validate'
+gt_dir = val_dir #os.path.join(project_root,'01_data/zarrs/validate')
 
-msk_thresh_list = [0.0] #-0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-pk_thresh_list = [0.1] #, 0.2, 0.4]
-save_pred_labels = True
-save_csvs = False
+msk_thresh_list = [0.0, 0.1, 0.2, 0.3] #[-0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+pk_thresh_list = [0.2]
+save_pred_labels = False
+save_csvs = True
 size_filt_list = [1] #, 100, 150] #[1,2,3,4,5,7,10,15]
 blur_sig = [0.5, 0.7, 0.7]
+strict_peak_thresh = True
 
 AllResults = pd.DataFrame()
 count = 0
@@ -41,8 +41,8 @@ for fi in val_samples:
     print("starting ", fi, " ...getting centroids...")
     img = zarr.open(os.path.join(val_dir, fi))
     gt_img = zarr.open(os.path.join(gt_dir, fi))
-    gt = gt_img['3d/labeled'][:]
-    pred = img['pred'][:]
+    gt = gt_img['gt_labels'][:]
+    pred = img[pred_name][:]
     
     y_mask = np.zeros(gt.shape, dtype=int) 
     if '3526-L-04' in fi:
@@ -54,7 +54,7 @@ for fi in val_samples:
         y_mask[:, 0:150, :] = 1
         y_mask[:, 650::, :] = 1
         y_mask[:, :, 0:30] = 1
-        y_mask[:, :, 964::] = 1
+        y_mask[:, :, 958::] = 1
     elif '6385-L-25' in fi:
         print('25')
         y_mask[:, 0:320, :] = 1
@@ -96,6 +96,15 @@ for fi in val_samples:
             markers = markers*mask
             segmentation = watershed(-dist_map, markers, mask=mask)
 
+            if strict_peak_thresh:
+                    # find labels with peaks > pk_thresh
+                    strict_labels = np.unique(segmentation[tuple(coords.T)])
+                    # remove labels with no peaks
+                    for i in np.unique(segmentation):
+                        if i == 0:
+                            continue
+                        if i not in strict_labels:
+                            segmentation[segmentation==i] = 0
 
             # segmentation = watershed(
             #         inv_dist_map,
@@ -131,10 +140,12 @@ for fi in val_samples:
                     img['pred_labels'].attrs['resolution'] = [1,]*3
                 if save_csvs:
                     print('calculating stats...')
+                    dice = np.sum((segmentation>0) & (gt>0)) * 2.0 / (np.sum(segmentation>0) + np.sum(gt>0))
                     results= {"file": fi,
                              "mask_thresh": thresh,
                              "peak_thresh": thresh+pk_thresh,
                              "size_thresh": size_thresh,
+                             "dice": dice,
                              }
                     results.update(
                         calc_errors(
