@@ -1,5 +1,6 @@
 import numpy as np
 import zarr
+import warnings
 
 def normalize(data, maxval=1., dtype=np.uint16):
     data = data.astype(dtype)
@@ -23,9 +24,9 @@ def save_out(
 
     if save2d:
         for z in range(array.shape[0]):
-            zarr_file[f'3d/{key}/{z}'] = np.expand_dims(array[z], axis=0)
-            zarr_file[f'3d/{key}/{z}'].attrs['offset'] = offset[1::]
-            zarr_file[f'3d/{key}/{z}'].attrs['resolution'] = res[1::]
+            zarr_file[f'2d/{key}/{z}'] = np.expand_dims(array[z], axis=0)
+            zarr_file[f'2d/{key}/{z}'].attrs['offset'] = offset[1::]
+            zarr_file[f'2d/{key}/{z}'].attrs['resolution'] = res[1::]
         
         zarr_file[f'3d/{key}'] = array
         zarr_file[f'3d/{key}'].attrs['offset'] = offset
@@ -36,6 +37,53 @@ def save_out(
         zarr_file[key].attrs['offset'] = offset
         zarr_file[key].attrs['resolution'] = res
 
+def _read_res(imgpath):
+    if imgpath is None:
+        return [1, 1, 1]
+    elif imgpath.endswith('.tif') or imgpath.endswith('.tiff'):
+        return _read_tiff_voxel_size(imgpath)
+    elif imgpath.endswith('.lif') or imgpath.endswith('.czi') or imgpath.endswith('.nd2'):
+        return _read_aics_voxel_size(imgpath)
+    
+def _read_tiff_voxel_size(file_path):
+    import tifffile
+    """
+    Implemented based on information found in https://pypi.org/project/tifffile
+    """
+
+    def _xy_voxel_size(tags, key):
+        assert key in ['XResolution', 'YResolution']
+        if key in tags:
+            num_pixels, units = tags[key].value
+            return units / num_pixels
+        # return default
+        return 1.
+
+    with tifffile.TiffFile(file_path) as tiff:
+        image_metadata = tiff.imagej_metadata
+        if image_metadata is not None:
+            z = image_metadata.get('spacing', 1.)
+        else:
+            # default voxel size
+            z = 1.
+
+        tags = tiff.pages[0].tags
+        # parse X, Y resolution
+        y = _xy_voxel_size(tags, 'YResolution')
+        x = _xy_voxel_size(tags, 'XResolution')
+        # return voxel size
+        return [z, y, x]
+
+def _read_aics_voxel_size(file_path):
+    import aicsimageio
+    try:
+        reader = aicsimageio.AICSImage(file_path)
+    except Exception as e:
+        print('error loading file', file_path, flush=True)
+        return [1, 1, 1]
+
+    pixel_size =[np.abs(reader.physical_pixel_sizes.Z), reader.physical_pixel_sizes.Y, reader.physical_pixel_sizes.X]
+    return pixel_size
 
 def split_files(
         imfis,
