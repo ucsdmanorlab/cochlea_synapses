@@ -4,19 +4,18 @@
 import numpy as np
 import shutil
 import pandas as pd
-import waterz
 import zarr
 import time
 import os
 
 from scipy.ndimage import gaussian_filter
-from skimage.measure import regionprops_table, label
+from skimage.measure import regionprops, regionprops_table, label
 from skimage.feature import peak_local_max
 from skimage.segmentation import watershed
 from skimage.util import map_array
 
 import sys
-project_root = '/home/caylamiller/workspace/cochlea_synapses/'
+project_root = os.path.expanduser('~/workspace/cochlea_synapses/')
 sys.path.append(project_root)
 from utils import save_out
 
@@ -28,10 +27,17 @@ val_samples = [i for i in os.listdir(val_dir) if i.endswith('ctbp2.zarr')]
 mask_thresh = 0.0 #-0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 peak_thresh = 0.1 #, 0.2, 0.4]
 size_thresh = 1
+strict_peak_thresh = True
 blur_sig = [0.5, 0.7, 0.7]
 
 for fi in val_samples:
+    if os.path.exists(os.path.join(fi, 'pred_labels')):
+        #print("skipping ", fi)
+        continue
     print("starting ", fi, " ...getting centroids...")
+    if not os.path.exists(os.path.join(fi, 'pred')):
+         print("no pred found, skipping ", fi)
+         continue
     img = zarr.open(os.path.join(val_dir, fi))
     pred = img['pred'][:]
     
@@ -42,13 +48,22 @@ for fi in val_samples:
             threshold_abs=peak_thresh, 
             min_distance=2,
             )
-    mask = np.zeros(dist_map.shape, dtype=bool)
-    mask[tuple(coords.T)] = True
-    markers = label(mask)
+    markers = np.zeros(dist_map.shape, dtype=bool)
+    markers[tuple(coords.T)] = True
+    markers = label(markers)
+
     mask = pred>(mask_thresh)
     markers = markers*mask
     segmentation = watershed(-dist_map, markers, mask=mask)
 
+    if strict_peak_thresh: # remove any masked regions without a peak  over peak threshold
+         strict_labels = np.unique(segmentation[tuple(coords.T)])
+         for i in np.unique(segmentation):
+             if i == 0:
+                 continue
+             if i not in strict_labels:
+                 segmentation[segmentation==i] = 0
+                 
     if size_thresh>1:
         print(size_thresh)
         seg_props = regionprops_table(segmentation, properties=('label', 'num_pixels'))

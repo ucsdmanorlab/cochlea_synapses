@@ -19,18 +19,19 @@ from utils import calc_errors, greedy_match_predictions
 
 start_t = time.time()
 
-val_dir = '/media/caylamiller/DataDrive/synapses_tscc/model_full_run_MSE1_GDL5__cpu12_cx2_nwx20_MSE1.0GDL5.0'
+val_dir = '/media/caylamiller/DataDrive/synapses_tscc/model_full_run_MSE1_GDL5_p85__cpu12_cx2_nwx20_MSE1.0GDL5.0' #model_full_run_MSE1_GDL5__cpu12_cx2_nwx20_MSE1.0GDL5.0'
 #os.path.join(project_root,'03_predict/3d/model_full_run_MSE1_GDL5__cpu12_cx2_nwx20_MSE1.0GDL5.0_checkpoint_5000')
 val_samples = [i for i in os.listdir(val_dir) if i.endswith('.zarr')]
 gt_dir = os.path.join(project_root,'01_data/zarrs/validate')
 
-msk_thresh_list = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-pk_thresh_list = [0.1, 0.2]
+msk_thresh_list = [0.0]#, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+pk_thresh_list = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 strict_peak_thresh = True
 save_pred_labels = False
 save_csvs = True
 size_filt_list = [1] #, 100, 150] #[1,2,3,4,5,7,10,15]
 blur_sig = [0.5, 0.7, 0.7]
+get_AUC = False
 
 AllResults = pd.DataFrame()
 AUCResults = pd.DataFrame()
@@ -39,7 +40,7 @@ count = 0
 for fi in val_samples:
 
     preds = [i for i in os.listdir(os.path.join(val_dir,fi)) if i.startswith('pred')]
-    print(fi, preds)
+    print(fi, preds, flush=True)
     if len(preds) == 0:
         continue
     print("starting ", fi, " ...getting centroids...")
@@ -81,14 +82,6 @@ for fi in val_samples:
         pred[y_mask>0] = -1
     
         for thresh in msk_thresh_list:
-            # if fi.startswith("airyscan"):
-            #     thresh = 0.5
-            # elif fi.startswith("spin"):
-            #     thresh = 0.1
-            # elif fi.startswith("conf"):
-            #     thresh = 0.1
-            
-            # calculate dice coefficient:
             
             for pk_thresh in pk_thresh_list:
                 print("thresh: ", thresh, thresh+pk_thresh) #, " (", np.where(thresh==np.array(thresh_list))[0][0]+1, " out of ", len(thresh_list), ")")
@@ -117,15 +110,11 @@ for fi in val_samples:
                             continue
                         if i not in strict_labels:
                             segmentation[segmentation==i] = 0
-                    
-                dice = np.sum((segmentation>0) & (gt>0)) * 2.0 / (np.sum(segmentation>0) + np.sum(gt>0))
+                intersection = np.logical_and(segmentation>0, gt>0).sum()
+                union = np.logical_or(segmentation>0, gt>0).sum()
+                iou = intersection / union if union != 0 else 0.0    
+                dice = intersection * 2.0 / (np.sum(segmentation>0) + np.sum(gt>0)) if (np.sum(segmentation>0) + np.sum(gt>0)) != 0 else 0.0
 
-                # segmentation = watershed(
-                #         inv_dist_map,
-                #         #markers=pks, 
-                #         mask=(pred>thresh))
-
-                #segmentation = label(pred>thresh)
                 if size_filt_list[-1] > 1:
                     seg_props = regionprops_table(segmentation, properties=('label', 'num_pixels'))
                     in_labels = seg_props['label']
@@ -160,6 +149,7 @@ for fi in val_samples:
                                 "peak_thresh": thresh+pk_thresh,
                                 "size_thresh": size_thresh,
                                 "dice": dice,
+                                "iou": iou,
                                 }
                         results.update(
                             calc_errors(
@@ -167,35 +157,36 @@ for fi in val_samples:
                                 gt_xyz, 
                                 )
                         )
-                        
-                        region_props = regionprops(segmentation_filt, intensity_image=pred)
+                        if get_AUC:
+                            region_props = regionprops(segmentation_filt, intensity_image=pred)
 
-                        for prop in region_props:
-                            if prop.label == 0:
-                                continue
-                            pred_coords.append(prop.centroid)  # highest distance transform value
-                            pred_scores.append(prop.max_intensity)
-                            # Match to GT centroids
+                            for prop in region_props:
+                                if prop.label == 0:
+                                    continue
+                                pred_coords.append(prop.centroid)  # highest distance transform value
+                                pred_scores.append(prop.max_intensity)
+                                # Match to GT centroids
 
                         print(results['f1'])
                         AllResults = pd.concat([AllResults, pd.DataFrame(data=results, index=[count])])
             count = count + 1
-
-        is_tp = greedy_match_predictions(pred_coords, pred_scores, gt_coords, dist_thresh=2.0)
-        precision, recall, _ = precision_recall_curve(is_tp, pred_scores)
-        ap = average_precision_score(is_tp, pred_scores)
-        results= {"file": fi,
-                "checkpoint": int(pred_str.replace('pred_','')),
-                "recall_curve": [recall],
-                "precision_curve": [precision],
-                "ap": ap,
-                }
-        AUCResults = pd.concat([AUCResults, pd.DataFrame(data=results, index=[count])])
+        if get_AUC:
+            is_tp = greedy_match_predictions(pred_coords, pred_scores, gt_coords, dist_thresh=2.0)
+            precision, recall, _ = precision_recall_curve(is_tp, pred_scores)
+            ap = average_precision_score(is_tp, pred_scores)
+            results= {"file": fi,
+                    "checkpoint": int(pred_str.replace('pred_','')),
+                    "recall_curve": [recall],
+                    "precision_curve": [precision],
+                    "ap": ap,
+                    }
+            AUCResults = pd.concat([AUCResults, pd.DataFrame(data=results, index=[count])])
 
 
 if save_csvs:
-    AllResults.to_csv(os.path.join(val_dir,'val_stats_strict.csv'),encoding='utf-8-sig')
-    AUCResults.to_csv(os.path.join(val_dir,'val_auc_stats_strict2.csv'),encoding='utf-8-sig')
+    AllResults.to_csv(os.path.join(val_dir,'val_stats_msk0.csv'),encoding='utf-8-sig')
+    if get_AUC:
+        AUCResults.to_csv(os.path.join(val_dir,'val_auc_stats_strict2.csv'),encoding='utf-8-sig')
     #bestlist = list(AllResults.groupby('file').idxmax()['f1'])
     #AllResults.iloc[bestlist].to_csv(os.path.join(val_dir,'best_stats.csv'), encoding='utf-8-sig')
 

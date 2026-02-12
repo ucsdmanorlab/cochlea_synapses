@@ -1,18 +1,15 @@
-import daisy
 import glob
 import gunpowder as gp
 import numpy as np
-import os
-import random
 import sys
 import torch
 import zarr
 import time
 from funlib.learn.torch.models import UNet, ConvPass
-from skimage.measure import label
-from skimage.filters import threshold_otsu
+
+import os
 import sys
-project_root = '/home/caylamiller/workspace/cochlea_synapses/'
+project_root = os.path.expanduser('~/workspace/cochlea_synapses/')
 sys.path.append(project_root)
 from utils import save_out
 
@@ -56,7 +53,7 @@ def predict(
                 [(1,3,3), (1,3,3)],
                 [(3,)*3, (3,)*3],
                 [(3,)*3, (3,)*3]]
-    torch.cuda.set_device(1)
+    torch.cuda.set_device(0)
 
     unet = UNet(
         in_channels=in_channels,
