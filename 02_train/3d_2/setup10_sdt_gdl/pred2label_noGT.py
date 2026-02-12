@@ -38,6 +38,7 @@ for fi in val_samples:
          continue
     img = zarr.open(os.path.join(val_dir, fi))
     pred = img['pred'][:]
+    pred_res = img['pred'].attrs['resolution']
     
     segmentation = sdt_to_labels(
                     pred, 
@@ -49,7 +50,7 @@ for fi in val_samples:
     print('saving labels...')
     if os.path.exists(os.path.join(val_dir, fi, 'pred_labels')):
         shutil.rmtree(os.path.join(val_dir,fi,'pred_labels'))
-    save_out(img, segmentation, 'pred_labels', save2d=False)    
+    save_out(img, segmentation, 'pred_labels', save2d=False, res=pred_res)    
 
 elapsed = time.time() - start_t
 print("elapsed time: "+str(elapsed))

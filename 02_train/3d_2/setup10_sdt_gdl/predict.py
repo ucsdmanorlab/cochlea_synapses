@@ -140,6 +140,7 @@ if __name__ == '__main__':
             '03_predict/3d/0'+checkpoint))
 
         raw_dataset = f'raw' #zarr.open(raw_file)['3d/raw'][:]
+        raw_res = zarr.open(raw_file)[raw_dataset].attrs['resolution']
 
         pred = predict(
                 checkpoint,
@@ -148,8 +149,8 @@ if __name__ == '__main__':
 
         pred = np.array(pred)
 
-        save_out(out_file, zarr.open(raw_file)['raw'][:], 'raw', save2d=False)
-        save_out(out_file, pred, 'pred', save2d=False)
+        save_out(out_file, zarr.open(raw_file)['raw'][:], 'raw', save2d=False, res=raw_res)
+        save_out(out_file, pred, 'pred', save2d=False, res=raw_res)
         #save_out(out_file, zarr.open(raw_file)['3d/labeled'][:], 'gt_labels',save2d=False)
     
     print("elapsed time: "+str(time.time()-start_t))

@@ -12,7 +12,7 @@ import sys
 project_root = '/home/caylamiller/workspace/cochlea_synapses/'
 sys.path.append(project_root)
 from utils import calc_errors, greedy_match_predictions
-from utils import sdt_to_labels, filt_labels_by_size
+from utils import sdt_to_labels, filt_labels_by_size, save_out
 
 start_t = time.time()
 
@@ -75,6 +75,7 @@ for fi in val_samples:
         pred_coords = []
         pred_scores = []
         pred = img[pred_str][:]
+        pred_res = img[pred_str].attrs['resolution']
         pred[y_mask>0] = -1
     
         for thresh in msk_thresh_list:
@@ -107,13 +108,9 @@ for fi in val_samples:
                             shutil.rmtree(os.path.join(val_dir,fi,'pred_labels'))
 
                         print('saving')
-                        img['gt_labels'] = gt
-                        img['gt_labels'].attrs['offset'] = [0,]*3
-                        img['gt_labels'].attrs['resolution'] = [1,]*3
+                        save_out(img, gt, 'gt_labels', save2d=False, res=pred_res)
+                        save_out(img, segmentation_filt.astype(np.uint64), 'pred_labels', save2d=False, res=pred_res)
 
-                        img['pred_labels'] = segmentation_filt.astype(np.uint64)
-                        img['pred_labels'].attrs['offset'] = [0,]*3
-                        img['pred_labels'].attrs['resolution'] = [1,]*3
                     if save_csvs:
                         print('calculating stats...')
                         results= {"file": fi,
