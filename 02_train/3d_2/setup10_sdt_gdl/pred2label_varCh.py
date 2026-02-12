@@ -5,17 +5,14 @@ import zarr
 import time
 import os
 
-from scipy.ndimage import gaussian_filter
-from skimage.measure import regionprops, regionprops_table, label
-from skimage.feature import peak_local_max
-from skimage.segmentation import watershed
-from skimage.util import map_array
+from skimage.measure import regionprops, regionprops_table
 from sklearn.metrics import precision_recall_curve, auc, average_precision_score
 
 import sys
 project_root = '/home/caylamiller/workspace/cochlea_synapses/'
 sys.path.append(project_root)
 from utils import calc_errors, greedy_match_predictions
+from utils import sdt_to_labels, filt_labels_by_size
 
 start_t = time.time()
 
@@ -30,7 +27,6 @@ strict_peak_thresh = True
 save_pred_labels = False
 save_csvs = True
 size_filt_list = [1] #, 100, 150] #[1,2,3,4,5,7,10,15]
-blur_sig = [0.5, 0.7, 0.7]
 get_AUC = False
 
 AllResults = pd.DataFrame()
@@ -82,49 +78,26 @@ for fi in val_samples:
         pred[y_mask>0] = -1
     
         for thresh in msk_thresh_list:
-            
             for pk_thresh in pk_thresh_list:
                 print("thresh: ", thresh, thresh+pk_thresh) #, " (", np.where(thresh==np.array(thresh_list))[0][0]+1, " out of ", len(thresh_list), ")")
                 peak_thresh = thresh+pk_thresh
-                mask_thresh = thresh#peak_thresh-0.1
-                dist_map = gaussian_filter(pred, blur_sig) 
-                coords = peak_local_max(
-                        dist_map, 
-                        footprint=np.ones((3, 3, 3)), 
-                        threshold_abs=peak_thresh, 
-                        min_distance=2,
-                        )
-                markers = np.zeros(dist_map.shape, dtype=bool)
-                markers[tuple(coords.T)] = True
-                markers = label(markers)
-                mask = pred>(mask_thresh)
-                markers = markers*mask
-                segmentation = watershed(-dist_map, markers, mask=mask)
+                mask_thresh = thresh
 
-                if strict_peak_thresh:
-                    # find labels with peaks > pk_thresh
-                    strict_labels = np.unique(segmentation[tuple(coords.T)])
-                    # remove labels with no peaks
-                    for i in np.unique(segmentation):
-                        if i == 0:
-                            continue
-                        if i not in strict_labels:
-                            segmentation[segmentation==i] = 0
+                segmentation = sdt_to_labels(
+                    pred, 
+                    peak_thresh=peak_thresh,
+                    mask_thresh=mask_thresh,
+                    strict_peak_thresh=strict_peak_thresh)
+                
                 intersection = np.logical_and(segmentation>0, gt>0).sum()
                 union = np.logical_or(segmentation>0, gt>0).sum()
                 iou = intersection / union if union != 0 else 0.0    
                 dice = intersection * 2.0 / (np.sum(segmentation>0) + np.sum(gt>0)) if (np.sum(segmentation>0) + np.sum(gt>0)) != 0 else 0.0
 
-                if size_filt_list[-1] > 1:
-                    seg_props = regionprops_table(segmentation, properties=('label', 'num_pixels'))
-                    in_labels = seg_props['label']
-                #print(np.max(seg_props['num_pixels']))
                 for size_thresh in size_filt_list:
                     if size_thresh>1:
                         print(size_thresh)
-                        out_labels = in_labels
-                        out_labels[seg_props['num_pixels']<size_thresh] = 0
-                        segmentation_filt = map_array(segmentation, in_labels, out_labels)
+                        segmentation_filt = filt_labels_by_size(segmentation, size_filt=size_thresh)
 
                     else:
                         segmentation_filt = segmentation

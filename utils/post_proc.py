@@ -1,5 +1,10 @@
 import numpy as np
 from scipy.spatial import distance_matrix
+from scipy.ndimage import gaussian_filter
+from skimage.measure import regionprops, regionprops_table, label
+from skimage.feature import peak_local_max
+from skimage.segmentation import watershed
+from skimage.util import map_array
 
 def greedy_match_predictions(pred_coords, pred_scores, gt_coords, dist_thresh=2.0):
     """
@@ -125,4 +130,49 @@ def calc_errors(labels, gt_xyz, return_img=False):
 
     return out 
 
+def sdt_to_labels(pred, 
+                  peak_thresh=0.2,
+                  mask_thresh=0.0,
+                  strict_peak_thresh=True,
+                  blur_sig=[0.5, 0.7, 0.7],
+                  size_filt=None):
+    dist_map = gaussian_filter(pred, blur_sig) 
+    coords = peak_local_max(
+            dist_map, 
+            footprint=np.ones((3, 3, 3)), 
+            threshold_abs=peak_thresh, 
+            min_distance=2,
+            )
+    markers = np.zeros(dist_map.shape, dtype=bool)
+    markers[tuple(coords.T)] = True
+    markers = label(markers)
+
+    mask = pred>(mask_thresh)
+
+    markers = markers*mask
+    segmentation = watershed(-dist_map, markers, mask=mask)
+    
+    if strict_peak_thresh: # remove any masked regions without a peak  over peak threshold
+         strict_labels = np.unique(segmentation[tuple(coords.T)])
+         for i in np.unique(segmentation):
+             if i == 0:
+                 continue
+             if i not in strict_labels:
+                 segmentation[segmentation==i] = 0
+    
+    segmentation = filt_labels_by_size(segmentation, size_filt=size_filt)
+    return segmentation
+
+def filt_labels_by_size(segmentation, 
+                        size_filt=1):
+    if size_filt>1:
+        seg_props = regionprops_table(segmentation, properties=('label', 'num_pixels'))
+        in_labels = seg_props['label']
+        out_labels = in_labels
+        out_labels[seg_props['num_pixels']<size_filt] = 0
+
+        segmentation_filt = map_array(segmentation, in_labels, out_labels)
+        return segmentation_filt
+    else:
+        return segmentation
 
