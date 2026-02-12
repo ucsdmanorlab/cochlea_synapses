@@ -10,7 +10,7 @@ import csv
 import sys
 project_root = '/home/caylamiller/workspace/cochlea_synapses/'
 sys.path.append(project_root)
-from utils import split_files, normalize, save_out
+from utils import split_files, normalize, save_out, _read_res
 
 start_t = time.time()
 #### Parameters to set: ####
@@ -23,8 +23,8 @@ do_split = False
 val_frac = 0.15
 test_frac = 0.1
 
-outdir = rawdir.replace('tifs','zarrs')
-outdir = outdir.replace('raw','')
+outdir = os.path.join(rawdir, 'zarrs')
+# outdir = outdir.replace('raw','')
 ############################
 
 if do_split:
@@ -52,6 +52,8 @@ for rawfile in raw_files:
         
     raw = imread(rawfile) #[:,:,:,2] for spinning disk data
     raw = normalize(raw.astype(np.uint16), maxval=(2**16-1)).astype(np.uint16)
+    res = _read_res(rawfile)
+    # print(res)
 
     rawdir, fileroot = os.path.split(rawfile)
     fileroot = os.path.splitext(fileroot)[0].replace('_raw','')
@@ -66,9 +68,9 @@ for rawfile in raw_files:
 
     out = zarr.open(outpath, 'a')
 
-    save_out(out, raw, 'raw', save2d=False)
+    save_out(out, raw, 'raw', save2d=False, res=res)
     if labels_exist:
-        save_out(out, labeled, 'labeled', save2d=False)
+        save_out(out, labeled, 'labeled', save2d=False, res=res)
 
     count += 1
     print("Image conversion time: "+str(time.time()-last_t)+" s")

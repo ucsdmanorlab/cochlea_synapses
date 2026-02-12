@@ -11,6 +11,7 @@ from scipy.ndimage import binary_erosion, binary_dilation, distance_transform_ed
 from .reject_cmm import *
 from .reject_batch import *
 from .noise_augment import * 
+from .loss import *
 
 logger = logging.getLogger(__name__)
 
