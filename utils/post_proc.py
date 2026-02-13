@@ -3,6 +3,7 @@ from scipy.spatial import distance_matrix
 from scipy.ndimage import gaussian_filter
 from skimage.measure import regionprops, regionprops_table, label
 from skimage.feature import peak_local_max
+from skimage.filters import threshold_yen, threshold_otsu
 from skimage.segmentation import watershed
 from skimage.util import map_array
 
@@ -165,7 +166,7 @@ def sdt_to_labels(pred,
 
 def filt_labels_by_size(segmentation, 
                         size_filt=1):
-    if size_filt>1:
+    if size_filt is not None and size_filt>1:
         seg_props = regionprops_table(segmentation, properties=('label', 'num_pixels'))
         in_labels = seg_props['label']
         out_labels = in_labels
@@ -176,3 +177,14 @@ def filt_labels_by_size(segmentation,
     else:
         return segmentation
 
+def bksub_threshold(img, type='yen'):
+    img = img.astype(np.float32)
+    img_filt = gaussian_filter(img, sigma=(1,2,2)) - gaussian_filter(img, sigma=(2,10,10))
+    if type=='otsu':
+        img_thresh = threshold_otsu(np.max(img_filt, axis=0))
+    elif type=='yen':
+        img_thresh = threshold_yen(np.max(img_filt, axis=0))
+    img_map = img_filt > img_thresh 
+    labels = watershed(-img_filt, mask=img_map)
+
+    return labels
