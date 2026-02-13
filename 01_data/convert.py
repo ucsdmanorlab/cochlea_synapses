@@ -53,6 +53,8 @@ for rawfile in raw_files:
     raw = imread(rawfile) #[:,:,:,2] for spinning disk data
     raw = normalize(raw.astype(np.uint16), maxval=(2**16-1)).astype(np.uint16)
     res = _read_res(rawfile)
+    # convert to nm:
+    res = [r*1000 for r in res]
     # print(res)
 
     rawdir, fileroot = os.path.split(rawfile)
